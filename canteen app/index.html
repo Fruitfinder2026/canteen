@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canteen Booking</title>
+
+    <style>
+        body {
+            font-family: Arial;
+            padding: 15px;
+            background: #f5f5f5;
+        }
+
+        h2 {
+            text-align: center;
+        }
+
+        .card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #28a745;
+            color: white;
+            border: none;
+            margin-top: 10px;
+            font-size: 16px;
+            border-radius: 8px;
+        }
+
+        .order {
+            border-bottom: 1px solid #ddd;
+            padding: 5px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+<h2>Canteen Booking</h2>
+
+<div class="card">
+    <h3 id="date"></h3>
+
+    <div id="menu"></div>
+
+    <input type="text" id="name" placeholder="Enter your name">
+
+    <button onclick="book()">Book Order</button>
+</div>
+
+<div class="card">
+    <h3>Orders (Last 7 Days)</h3>
+    <div id="orders"></div>
+</div>
+
+<script>
+async function loadMenu() {
+    let res = await fetch("/menu");
+    let data = await res.json();
+
+    document.getElementById("date").innerText =
+        "Booking for: " + data.date + " (" + data.day + ")";
+
+    let menuDiv = document.getElementById("menu");
+    menuDiv.innerHTML = "";
+
+    data.items.forEach(item => {
+        let label = document.createElement("label");
+        label.innerHTML = `<input type="checkbox" value="${item}"> ${item}`;
+        menuDiv.appendChild(label);
+        menuDiv.appendChild(document.createElement("br"));
+    });
+}
+
+async function book() {
+    let name = document.getElementById("name").value;
+
+    let checked = document.querySelectorAll("input[type=checkbox]:checked");
+    let items = Array.from(checked).map(c => c.value);
+
+    if (!name || items.length === 0) {
+        alert("Enter name and select items");
+        return;
+    }
+
+    await fetch("/order", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({name, items})
+    });
+
+    alert("Order placed!");
+    loadOrders();
+}
+
+async function loadOrders() {
+    let res = await fetch("/orders");
+    let data = await res.json();
+
+    let div = document.getElementById("orders");
+    div.innerHTML = "";
+
+    data.forEach(o => {
+        let d = document.createElement("div");
+        d.className = "order";
+        d.innerHTML = `<b>${o.name}</b> ? ${o.items.join(", ")} <br><small>${o.date}</small>`;
+        div.appendChild(d);
+    });
+}
+
+loadMenu();
+loadOrders();
+</script>
+
+</body>
+</html>
