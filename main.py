@@ -90,8 +90,8 @@ def place_order(order: Order, request: Request):
     ip = request.client.host
     timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
 
-    # ?? Send to Google Sheets
-    url = "PASTE_YOUR_SCRIPT_URL_HERE"
+    # Send to Google Sheets
+    url = "https://script.google.com/macros/s/AKfycbyoPGSPn13L8gmTzcjpOEjxTBKnWYh74dIJlcpmxDjuHUzM5FIC5g6hAn2aggOQwcCd/exec"
 
     payload = {
         "name": order.name,
@@ -135,7 +135,7 @@ def admin_dashboard(password: str):
     if password != "admin123":
         return {"error": "Unauthorized"}
 
-    url = "PASTE_YOUR_SCRIPT_URL_HERE"
+    url = "https://script.google.com/macros/s/AKfycbyoPGSPn13L8gmTzcjpOEjxTBKnWYh74dIJlcpmxDjuHUzM5FIC5g6hAn2aggOQwcCd/exec"
 
     res = requests.get(url)
     data = res.json()
@@ -157,20 +157,22 @@ def admin_dashboard(password: str):
 # EXPORT
 @app.get("/export")
 def export_excel():
-    cursor.execute("SELECT name, items, date, ip, timestamp FROM orders")
-    rows = cursor.fetchall()
+
+    url = "https://script.google.com/macros/s/AKfycbyoPGSPn13L8gmTzcjpOEjxTBKnWYh74dIJlcpmxDjuHUzM5FIC5g6hAn2aggOQwcCd/exec"
+
+    res = requests.get(url)
+    rows = res.json()
 
     data = []
+
     for r in rows:
-        items_dict = json.loads(r[1])
+        items_dict = json.loads(r["items"])
         formatted_items = ", ".join([f"{k}({v})" for k, v in items_dict.items()])
 
         data.append({
-            "Name": r[0],
+            "Name": r["name"],
             "Items": formatted_items,
-            "Date": r[2],
-            "IP": r[3],
-            "Time": r[4]
+            "Date": r["date"]
         })
 
     df = pd.DataFrame(data)
