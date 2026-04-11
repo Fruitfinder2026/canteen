@@ -1,55 +1,91 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Canteen Booking</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APS2 Canteen Booking</title>
 
-    <style>
-        body {
-            font-family: Arial;
-            padding: 15px;
-            background: #f5f5f5;
-        }
+<style>
+body {
+    font-family: Arial;
+    margin: 0;
+    background: #f4f6f8;
+}
 
-        h2 {
-            text-align: center;
-        }
+.header {
+    background: #2c3e50;
+    color: white;
+    padding: 15px;
+    text-align: center;
+    font-size: 20px;
+}
 
-        .card {
-            background: white;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
+.container {
+    padding: 15px;
+}
 
-        input {
-            width: 100%;
-            padding: 10px;
-            margin-top: 10px;
-        }
+.card {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
 
-        button {
-            width: 100%;
-            padding: 12px;
-            background: #28a745;
-            color: white;
-            border: none;
-            margin-top: 10px;
-            font-size: 16px;
-            border-radius: 8px;
-        }
+h3 {
+    margin-top: 0;
+}
 
-        .order {
-            border-bottom: 1px solid #ddd;
-            padding: 5px 0;
-        }
-    </style>
+input {
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.book-btn {
+    background: #27ae60;
+    color: white;
+}
+
+.admin-btn {
+    background: #2980b9;
+    color: white;
+}
+
+.export-btn {
+    background: #8e44ad;
+    color: white;
+}
+
+.order {
+    border-bottom: 1px solid #ddd;
+    padding: 8px 0;
+}
+
+small {
+    color: gray;
+}
+</style>
 </head>
 
 <body>
 
-<h2>Canteen Booking</h2>
+<div class="header">
+APS2 Canteen Booking System
+</div>
+
+<div class="container">
 
 <div class="card">
     <h3 id="date"></h3>
@@ -58,7 +94,12 @@
 
     <input type="text" id="name" placeholder="Enter your name">
 
-    <button onclick="book()">Book Order</button>
+    <button class="book-btn" onclick="book()">Book Order</button>
+</div>
+
+<div class="card">
+    <button class="admin-btn" onclick="openAdmin()">View Admin Dashboard</button>
+    <button class="export-btn" onclick="exportExcel()">Download Excel</button>
 </div>
 
 <div class="card">
@@ -66,44 +107,69 @@
     <div id="orders"></div>
 </div>
 
+</div>
+
 <script>
+
 async function loadMenu() {
     let res = await fetch("/menu");
     let data = await res.json();
 
     document.getElementById("date").innerText =
-        "Booking for: " + data.date + " (" + data.day + ")";
+        let parts = data.date.split("-");
+let formattedDate = parts[2] + "-" + parts[1] + "-" + parts[0];
+
+document.getElementById("date").innerText =
+    "Booking for: " + formattedDate + " (" + data.day + ")";
 
     let menuDiv = document.getElementById("menu");
     menuDiv.innerHTML = "";
 
     data.items.forEach(item => {
         let label = document.createElement("label");
-        label.innerHTML = `<input type="checkbox" value="${item}"> ${item}`;
+        label.innerHTML = `
+            <input type="checkbox" value="${item}"> ${item}
+        `;
         menuDiv.appendChild(label);
         menuDiv.appendChild(document.createElement("br"));
     });
 }
 
 async function book() {
-    let name = document.getElementById("name").value;
+
+    let name = document.getElementById("name").value.trim();
 
     let checked = document.querySelectorAll("input[type=checkbox]:checked");
     let items = Array.from(checked).map(c => c.value);
 
-    if (!name || items.length === 0) {
-        alert("Enter name and select items");
+    if (!name) {
+        alert("Please enter your name");
         return;
     }
 
-    await fetch("/order", {
+    if (items.length === 0) {
+        alert("Please select at least one item");
+        return;
+    }
+
+    let res = await fetch("/order", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({name, items})
     });
 
-    alert("Order placed!");
-    loadOrders();
+    let data = await res.json();
+
+    if (data.error) {
+        alert("This is" + data.error);
+    } else {
+        alert("Order placed successfully!");
+
+        document.getElementById("name").value = "";
+        document.querySelectorAll("input[type=checkbox]").forEach(c => c.checked = false);
+
+        loadOrders();
+    }
 }
 
 async function loadOrders() {
@@ -116,13 +182,26 @@ async function loadOrders() {
     data.forEach(o => {
         let d = document.createElement("div");
         d.className = "order";
-        d.innerHTML = `<b>${o.name}</b> ? ${o.items.join(", ")} <br><small>${o.date}</small>`;
+        d.innerHTML = `
+            <b>${o.name}</b><br>
+            ${o.items.join(", ")}<br>
+            <small>${o.date}</small>
+        `;
         div.appendChild(d);
     });
 }
 
+function openAdmin() {
+    window.open("/admin", "_blank");
+}
+
+function exportExcel() {
+    window.open("/export", "_blank");
+}
+
 loadMenu();
 loadOrders();
+
 </script>
 
 </body>
