@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import sqlite3
 import json
 import pandas as pd
+import requests
 
 app = FastAPI()
 
@@ -86,47 +87,43 @@ def place_order(order: Order, request: Request):
 
     booking_date = get_booking_day().strftime("%Y-%m-%d")
 
-    cursor.execute(
-        "SELECT * FROM orders WHERE name=? AND date=?",
-        (order.name, booking_date)
-    )
-
-    if cursor.fetchone():
-        return {"error": "You already booked"}
-
     ip = request.client.host
-    user_agent = request.headers.get("user-agent")
     timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
 
-    cursor.execute(
-        "INSERT INTO orders (name, items, date, ip, user_agent, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
-        (order.name, json.dumps(order.items), booking_date, ip, user_agent, timestamp)
-    )
-    conn.commit()
+    # ?? Send to Google Sheets
+    url = "PASTE_YOUR_SCRIPT_URL_HERE"
+
+    payload = {
+        "name": order.name,
+        "items": json.dumps(order.items),
+        "date": booking_date,
+        "ip": ip,
+        "time": timestamp
+    }
+
+    requests.post(url, json=payload)
 
     return {"message": "Order placed"}
 
 # ORDERS
 @app.get("/orders")
 def get_orders():
-    last_week = (get_ist_time() - timedelta(days=7)).strftime("%Y-%m-%d")
 
-    cursor.execute(
-        "SELECT name, items, date FROM orders WHERE date >= ? ORDER BY date DESC",
-        (last_week,)
-    )
+    url = "https://script.google.com/macros/s/AKfycbyoPGSPn13L8gmTzcjpOEjxTBKnWYh74dIJlcpmxDjuHUzM5FIC5g6hAn2aggOQwcCd/exec"
 
-    rows = cursor.fetchall()
+    res = requests.get(url)
+    data = res.json()
 
     result = []
-    for r in rows:
-        items_dict = json.loads(r[1])
+
+    for r in data:
+        items_dict = json.loads(r["items"])
         formatted = ", ".join([f"{k}({v})" for k, v in items_dict.items()])
 
         result.append({
-            "name": r[0],
+            "name": r["name"],
             "items": formatted,
-            "date": r[2]
+            "date": r["date"]
         })
 
     return result
@@ -134,18 +131,19 @@ def get_orders():
 # ADMIN
 @app.get("/admin")
 def admin_dashboard(password: str):
+
     if password != "admin123":
         return {"error": "Unauthorized"}
 
-    booking_date = get_booking_day().strftime("%Y-%m-%d")
+    url = "PASTE_YOUR_SCRIPT_URL_HERE"
 
-    cursor.execute("SELECT items FROM orders WHERE date=?", (booking_date,))
-    rows = cursor.fetchall()
+    res = requests.get(url)
+    data = res.json()
 
     count = {}
 
-    for r in rows:
-        items = json.loads(r[0])
+    for r in data:
+        items = json.loads(r["items"])
 
         for item, qty in items.items():
             if item == "Jalebi":
