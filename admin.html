@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel</title>
+
+<style>
+body {
+    font-family: Arial;
+    padding: 20px;
+    background: #f4f6f8;
+}
+
+.card {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+button {
+    width: 100%;
+    padding: 10px;
+    background: #2980b9;
+    color: white;
+    border: none;
+    border-radius: 6px;
+}
+
+.item {
+    border-bottom: 1px solid #ddd;
+    padding: 8px 0;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="card">
+<h2>Admin Dashboard</h2>
+
+<input type="password" id="pass" placeholder="Enter password">
+<button onclick="loadAdmin()">Load Data</button>
+</div>
+
+<div class="card" id="data"></div>
+
+<div class="card">
+<button onclick="download()">Download Excel</button>
+</div>
+
+<script>
+
+async function loadAdmin() {
+
+    let pass = document.getElementById("pass").value;
+
+    let res = await fetch("/admin?password=" + pass);
+    let data = await res.json();
+
+    if (data.error) {
+        alert("Wrong password");
+        return;
+    }
+
+    let div = document.getElementById("data");
+    div.innerHTML = "<h3>Today's Total</h3>";
+
+    for (let k in data) {
+        div.innerHTML += `<div class="item"><b>${k}</b>: ${data[k]}</div>`;
+    }
+}
+
+function download() {
+    window.open("/export", "_blank");
+}
+
+</script>
+
+</body>
+</html>

@@ -43,6 +43,12 @@ input {
     border: 1px solid #ccc;
 }
 
+select {
+    width: 100%;
+    padding: 8px;
+    margin: 5px 0 10px 0;
+}
+
 button {
     width: 100%;
     padding: 12px;
@@ -60,11 +66,6 @@ button {
 
 .admin-btn {
     background: #2980b9;
-    color: white;
-}
-
-.export-btn {
-    background: #8e44ad;
     color: white;
 }
 
@@ -99,7 +100,6 @@ APS2 Canteen Booking System
 
 <div class="card">
     <button class="admin-btn" onclick="openAdmin()">View Admin Dashboard</button>
-    <button class="export-btn" onclick="exportExcel()">Download Excel</button>
 </div>
 
 <div class="card">
@@ -125,12 +125,38 @@ async function loadMenu() {
     menuDiv.innerHTML = "";
 
     data.items.forEach(item => {
+
+        let div = document.createElement("div");
+
         let label = document.createElement("label");
-        label.innerHTML = `
-            <input type="checkbox" value="${item}"> ${item}
-        `;
-        menuDiv.appendChild(label);
-        menuDiv.appendChild(document.createElement("br"));
+        label.innerText = item;
+
+        let select = document.createElement("select");
+        select.id = item;
+
+        // Jalebi (grams)
+        if (item === "Jalebi") {
+            [50,100,200,500,1000,2000].forEach(g => {
+                let opt = document.createElement("option");
+                opt.value = g + "g";
+                opt.text = g + " g";
+                select.appendChild(opt);
+            });
+        }
+        // Tea or snacks
+        else {
+            for (let i = 1; i <= 30; i++) {
+                let opt = document.createElement("option");
+                opt.value = i;
+                opt.text = i;
+                select.appendChild(opt);
+            }
+        }
+
+        div.appendChild(label);
+        div.appendChild(select);
+
+        menuDiv.appendChild(div);
     });
 }
 
@@ -138,18 +164,18 @@ async function book() {
 
     let name = document.getElementById("name").value.trim();
 
-    let checked = document.querySelectorAll("input[type=checkbox]:checked");
-    let items = Array.from(checked).map(c => c.value);
-
     if (!name) {
         alert("Please enter your name");
         return;
     }
 
-    if (items.length === 0) {
-        alert("Please select at least one item");
-        return;
-    }
+    let selects = document.querySelectorAll("#menu select");
+
+    let items = {};
+
+    selects.forEach(s => {
+        items[s.id] = s.value;
+    });
 
     let res = await fetch("/order", {
         method: "POST",
@@ -160,13 +186,9 @@ async function book() {
     let data = await res.json();
 
     if (data.error) {
-        alert("This is" + data.error);
+        alert(data.error);
     } else {
         alert("Order placed successfully!");
-
-        document.getElementById("name").value = "";
-        document.querySelectorAll("input[type=checkbox]").forEach(c => c.checked = false);
-
         loadOrders();
     }
 }
@@ -183,7 +205,7 @@ async function loadOrders() {
         d.className = "order";
         d.innerHTML = `
             <b>${o.name}</b><br>
-            ${o.items.join(", ")}<br>
+            ${o.items}<br>
             <small>${o.date}</small>
         `;
         div.appendChild(d);
@@ -191,11 +213,7 @@ async function loadOrders() {
 }
 
 function openAdmin() {
-    window.open("/admin", "_blank");
-}
-
-function exportExcel() {
-    window.open("/export", "_blank");
+    window.open("/admin-ui", "_blank");
 }
 
 loadMenu();

@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 import sqlite3
 import json
 import pandas as pd
-from datetime import datetime, timedelta, timezone
 
 app = FastAPI()
 
@@ -36,28 +35,23 @@ menu = {
     "Saturday": ["Tea"]
 }
 
-# ---------------- MODEL ----------------
 class Order(BaseModel):
     name: str
-    items: list
+    items: dict
 
-# ---------------- HELPER ----------------
+# ---------------- TIME ----------------
 def get_ist_time():
-    # IST = UTC + 5:30
     return datetime.utcnow() + timedelta(hours=5, minutes=30)
-
 
 def get_booking_day():
     today = get_ist_time()
 
-    if today.weekday() == 5:  # Saturday
-        booking_date = today + timedelta(days=2)
-    elif today.weekday() == 6:  # Sunday
-        booking_date = today + timedelta(days=1)
+    if today.weekday() == 5:
+        return today + timedelta(days=2)
+    elif today.weekday() == 6:
+        return today + timedelta(days=1)
     else:
-        booking_date = today + timedelta(days=1)
-
-    return booking_date
+        return today + timedelta(days=1)
 
 # ---------------- ROUTES ----------------
 
@@ -65,8 +59,11 @@ def get_booking_day():
 def home():
     return HTMLResponse(open("index.html").read())
 
+@app.get("/admin-ui")
+def admin_ui():
+    return HTMLResponse(open("admin.html").read())
 
-# Get Menu
+# MENU
 @app.get("/menu")
 def get_menu():
     booking_date = get_booking_day()
@@ -78,47 +75,41 @@ def get_menu():
         "items": menu.get(day, [])
     }
 
-
-# Place Order
+# ORDER
 @app.post("/order")
 def place_order(order: Order, request: Request):
 
     now = get_ist_time()
 
-    # Cutoff time (7 PM)
     if now.hour >= 19:
         return {"error": "Booking closed after 7 PM"}
 
-    booking_date = get_booking_day()
-    booking_date_str = booking_date.strftime("%Y-%m-%d")
+    booking_date = get_booking_day().strftime("%Y-%m-%d")
 
-    # Duplicate check
     cursor.execute(
         "SELECT * FROM orders WHERE name=? AND date=?",
-        (order.name, booking_date_str)
+        (order.name, booking_date)
     )
 
     if cursor.fetchone():
-        return {"error": "You have already placed an order"}
+        return {"error": "You already booked"}
 
-    # Device tracking
     ip = request.client.host
     user_agent = request.headers.get("user-agent")
     timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
 
     cursor.execute(
         "INSERT INTO orders (name, items, date, ip, user_agent, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
-        (order.name, json.dumps(order.items), booking_date_str, ip, user_agent, timestamp)
+        (order.name, json.dumps(order.items), booking_date, ip, user_agent, timestamp)
     )
     conn.commit()
 
-    return {"message": "Order placed successfully"}
+    return {"message": "Order placed"}
 
-
-# Get Orders (Last 7 Days)
+# ORDERS
 @app.get("/orders")
 def get_orders():
-    last_week = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+    last_week = (get_ist_time() - timedelta(days=7)).strftime("%Y-%m-%d")
 
     cursor.execute(
         "SELECT name, items, date FROM orders WHERE date >= ? ORDER BY date DESC",
@@ -129,38 +120,43 @@ def get_orders():
 
     result = []
     for r in rows:
+        items_dict = json.loads(r[1])
+        formatted = ", ".join([f"{k}({v})" for k, v in items_dict.items()])
+
         result.append({
             "name": r[0],
-            "items": json.loads(r[1]),
+            "items": formatted,
             "date": r[2]
         })
 
     return result
 
-
-# Admin Dashboard (Item Count)
+# ADMIN
 @app.get("/admin")
-def admin_dashboard():
+def admin_dashboard(password: str):
+    if password != "admin123":
+        return {"error": "Unauthorized"}
+
     booking_date = get_booking_day().strftime("%Y-%m-%d")
 
-    cursor.execute(
-        "SELECT items FROM orders WHERE date=?",
-        (booking_date,)
-    )
-
+    cursor.execute("SELECT items FROM orders WHERE date=?", (booking_date,))
     rows = cursor.fetchall()
 
     count = {}
 
     for r in rows:
         items = json.loads(r[0])
-        for item in items:
-            count[item] = count.get(item, 0) + 1
+
+        for item, qty in items.items():
+            if item == "Jalebi":
+                grams = int(qty.replace("g", ""))
+                count[item] = count.get(item, 0) + grams
+            else:
+                count[item] = count.get(item, 0) + int(qty)
 
     return count
 
-
-# Export Excel
+# EXPORT
 @app.get("/export")
 def export_excel():
     cursor.execute("SELECT name, items, date, ip, timestamp FROM orders")
@@ -168,9 +164,12 @@ def export_excel():
 
     data = []
     for r in rows:
+        items_dict = json.loads(r[1])
+        formatted_items = ", ".join([f"{k}({v})" for k, v in items_dict.items()])
+
         data.append({
             "Name": r[0],
-            "Items": ", ".join(json.loads(r[1])),
+            "Items": formatted_items,
             "Date": r[2],
             "IP": r[3],
             "Time": r[4]
