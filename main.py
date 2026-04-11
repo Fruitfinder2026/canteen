@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import sqlite3
 import json
 import pandas as pd
+from datetime import datetime, timedelta, timezone
 
 app = FastAPI()
 
@@ -41,8 +42,13 @@ class Order(BaseModel):
     items: list
 
 # ---------------- HELPER ----------------
+def get_ist_time():
+    # IST = UTC + 5:30
+    return datetime.utcnow() + timedelta(hours=5, minutes=30)
+
+
 def get_booking_day():
-    today = datetime.now()
+    today = get_ist_time()
 
     if today.weekday() == 5:  # Saturday
         booking_date = today + timedelta(days=2)
@@ -77,7 +83,7 @@ def get_menu():
 @app.post("/order")
 def place_order(order: Order, request: Request):
 
-    now = datetime.now()
+    now = get_ist_time()
 
     # Cutoff time (7 PM)
     if now.hour >= 19:

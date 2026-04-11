@@ -116,7 +116,11 @@ async function loadMenu() {
     let data = await res.json();
 
     document.getElementById("date").innerText =
-        "Booking for: " + data.date + " (" + data.day + ")";
+        let parts = data.date.split("-");
+let formattedDate = parts[2] + "-" + parts[1] + "-" + parts[0];
+
+document.getElementById("date").innerText =
+    "Booking for: " + formattedDate + " (" + data.day + ")";
 
     let menuDiv = document.getElementById("menu");
     menuDiv.innerHTML = "";
