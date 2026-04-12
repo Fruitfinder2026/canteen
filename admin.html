@@ -7,7 +7,7 @@
 <style>
 body {
     font-family: Arial;
-    padding: 20px;
+    padding: 15px;
     background: #f4f6f8;
 }
 
@@ -19,7 +19,7 @@ body {
     box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 
-input {
+input, select {
     width: 100%;
     padding: 10px;
     margin-bottom: 10px;
@@ -27,16 +27,23 @@ input {
 
 button {
     width: 100%;
-    padding: 10px;
+    padding: 12px;
     background: #2980b9;
     color: white;
     border: none;
     border-radius: 6px;
+    font-size: 15px;
 }
 
 .item {
-    border-bottom: 1px solid #ddd;
     padding: 8px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.highlight {
+    background: #e8f8f5;
+    border-left: 4px solid #27ae60;
+    padding-left: 8px;
 }
 </style>
 
@@ -52,6 +59,26 @@ button {
 </div>
 
 <div class="card" id="data"></div>
+
+<div class="card">
+<h3>Booking Controls</h3>
+
+<label>Set Cutoff Time</label>
+<input type="time" id="cutoff" value="19:00">
+
+<button onclick="saveSettings()">Save Settings</button>
+</div>
+
+<div class="card">
+<h3>Notifications</h3>
+
+<select id="whatsapp">
+    <option value="off">WhatsApp OFF</option>
+    <option value="on">WhatsApp ON</option>
+</select>
+
+<button onclick="saveSettings()">Save Notification Settings</button>
+</div>
 
 <div class="card">
 <button onclick="download()">Download Excel</button>
@@ -72,15 +99,29 @@ async function loadAdmin() {
     }
 
     let div = document.getElementById("data");
-    div.innerHTML = "<h3>Today's Total + Overall</h3>";
 
-    for (let k in data) {
-        div.innerHTML = "<h3>Item Totals</h3>";
+    div.innerHTML = "<h3>Today's Total</h3>";
+
+    for (let item in data) {
+        div.innerHTML += `
+            <div class="item highlight">
+                <b>${item}</b> : ${data[item]}
+            </div>
+        `;
     }
 }
 
+// ---------------- DOWNLOAD ----------------
 function download() {
     window.open("/export", "_blank");
+}
+
+// ---------------- SETTINGS (future backend hook) ----------------
+function saveSettings() {
+    let cutoff = document.getElementById("cutoff").value;
+    let whatsapp = document.getElementById("whatsapp").value;
+
+    alert("Saved locally (backend integration next step)\nCutoff: "+cutoff+"\nWhatsApp: "+whatsapp);
 }
 
 </script>
