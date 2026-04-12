@@ -189,6 +189,12 @@ def admin_dashboard(password: str):
                 count[item] = count.get(item, 0) + int(qty)
 
     return count
+# ADD TODAY FILTER
+today = get_ist_time().strftime("%d-%m-%Y")
+
+for r in data:
+    if today not in r.get("date",""):
+        continue
 
 # ---------------- EXPORT ----------------
 @app.get("/export")

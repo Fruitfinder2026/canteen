@@ -72,10 +72,10 @@ async function loadAdmin() {
     }
 
     let div = document.getElementById("data");
-    div.innerHTML = "<h3>Today's Total</h3>";
+    div.innerHTML = "<h3>Today's Total + Overall</h3>";
 
     for (let k in data) {
-        div.innerHTML += `<div class="item"><b>${k}</b>: ${data[k]}</div>`;
+        div.innerHTML = "<h3>Item Totals</h3>";
     }
 }
 

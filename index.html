@@ -5,96 +5,47 @@
 <title>APS2 Canteen Booking</title>
 
 <style>
-body {
-    font-family: Arial;
-    margin: 0;
-    background: #f4f6f8;
-}
-
-.header {
-    background: #2c3e50;
-    color: white;
-    padding: 15px;
-    text-align: center;
-    font-size: 20px;
-}
-
-.container {
-    padding: 15px;
-}
+body { font-family: Arial; margin:0; background:#f4f6f8; }
+.header { background:#2c3e50; color:white; padding:15px; text-align:center; }
+.container { padding:15px; }
 
 .card {
-    background: white;
-    padding: 15px;
-    border-radius: 10px;
-    margin-bottom: 15px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    background:white;
+    padding:15px;
+    border-radius:10px;
+    margin-bottom:15px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.1);
 }
 
-h3 {
-    margin-top: 0;
-}
-
-input, textarea {
-    width: 100%;
-    padding: 10px;
-    margin-top: 10px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-}
-
-select {
-    width: 100%;
-    padding: 8px;
-    margin: 5px 0 10px 0;
-}
+.order { border-bottom:1px solid #ddd; padding:10px 0; }
+.today { background:#e8f8f5; border-left:4px solid #27ae60; padding-left:8px; }
 
 button {
-    width: 100%;
-    padding: 12px;
-    margin-top: 10px;
-    border: none;
-    border-radius: 8px;
-    font-size: 16px;
-    cursor: pointer;
+    width:100%; padding:12px; border:none;
+    border-radius:8px; font-size:16px; cursor:pointer;
 }
 
-.book-btn {
-    background: #27ae60;
-    color: white;
-}
+.book-btn { background:#27ae60; color:white; }
+.admin-btn { background:#2980b9; color:white; }
 
-.admin-btn {
-    background: #2980b9;
-    color: white;
-}
-
-.order {
-    border-bottom: 1px solid #ddd;
-    padding: 8px 0;
-}
-
-small {
-    color: gray;
+input, textarea, select {
+    width:100%; padding:10px; margin-top:8px;
+    border-radius:6px; border:1px solid #ccc;
 }
 </style>
 </head>
 
 <body>
 
-<div class="header">
-APS2 Canteen Booking System
-</div>
+<div class="header">APS2 Canteen Booking System</div>
 
 <div class="container">
 
 <div class="card">
     <h3 id="date"></h3>
-
     <div id="menu"></div>
 
-    <input type="text" id="name" placeholder="Enter your name">
-
+    <input id="name" placeholder="Enter your name">
     <textarea id="instruction" placeholder="Any Special Instructions"></textarea>
 
     <button class="book-btn" onclick="book()">Book Order</button>
@@ -113,42 +64,112 @@ APS2 Canteen Booking System
 
 <script>
 
-async function loadOrders() {
+// ---------------- MENU ----------------
+async function loadMenu() {
+    let res = await fetch("/menu");
+    let data = await res.json();
+
+    let parts = data.date.split("-");
+    document.getElementById("date").innerText =
+        "Booking for: " + parts[2]+"-"+parts[1]+"-"+parts[0] + " (" + data.day + ")";
+
+    let menuDiv = document.getElementById("menu");
+    menuDiv.innerHTML = "";
+
+    data.items.forEach(item => {
+
+        let select = document.createElement("select");
+        select.id = item;
+
+        if (item === "Jalebi") {
+            [0,50,100,200,500,1000,2000].forEach(g => {
+                let opt = document.createElement("option");
+                opt.value = g === 0 ? "0" : g+"g";
+                opt.text = g === 0 ? "0" : g+" g";
+                select.appendChild(opt);
+            });
+        } else {
+            for (let i=0;i<=30;i++){
+                let opt = document.createElement("option");
+                opt.value = i;
+                opt.text = i;
+                select.appendChild(opt);
+            }
+        }
+
+        menuDiv.innerHTML += `<label>${item}</label>`;
+        menuDiv.appendChild(select);
+    });
+}
+
+// ---------------- BOOK ----------------
+async function book() {
+
+    let name = document.getElementById("name").value.trim();
+    let instruction = document.getElementById("instruction").value;
+
+    if (!name) return alert("Enter name");
+
+    let items = {};
+    document.querySelectorAll("#menu select").forEach(s=>{
+        if (s.value !== "0") items[s.id]=s.value;
+    });
+
+    if (Object.keys(items).length===0)
+        return alert("Select at least one item");
+
+    let res = await fetch("/order", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({name,items,instruction})
+    });
+
+    let data = await res.json();
+    if(data.error) alert(data.error);
+    else {
+        alert("Order placed!");
+        loadOrders();
+    }
+}
+
+// ---------------- ORDERS ----------------
+function formatDate(dateStr){
+    try{
+        let d = new Date(dateStr);
+        let day = String(d.getDate()).padStart(2,'0');
+        let month = String(d.getMonth()+1).padStart(2,'0');
+        let year = d.getFullYear();
+
+        let time = d.toLocaleTimeString("en-IN",{hour:'2-digit',minute:'2-digit'});
+
+        return `${day}-${month}-${year} ${time}`;
+    }catch{
+        return dateStr;
+    }
+}
+
+async function loadOrders(){
     let res = await fetch("/orders");
     let data = await res.json();
 
     let div = document.getElementById("orders");
-    div.innerHTML = "";
+    div.innerHTML="";
 
-    data.forEach(o => {
+    let today = new Date().toDateString();
 
-        // ✅ FORMAT DATE PROPERLY
-        let formattedDate = "";
-        try {
-            let d = new Date(o.date);
+    data.forEach(o=>{
+        let formatted = formatDate(o.date);
 
-            formattedDate =
-                let day = String(d.getDate()).padStart(2, '0');
-let month = String(d.getMonth() + 1).padStart(2, '0');
-let year = d.getFullYear();
-
-formattedDate = `${day}-${month}-${year} ` +
-    d.toLocaleTimeString("en-IN", { hour: '2-digit', minute: '2-digit' }); + " " +
-                d.toLocaleTimeString("en-IN", {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-        } catch {
-            formattedDate = o.date;
-        }
+        let d = new Date(o.date);
+        let isToday = d.toDateString()===today;
 
         let el = document.createElement("div");
-        el.className = "order";
+        el.className = "order " + (isToday ? "today" : "");
 
         el.innerHTML = `
             <b>${o.name}</b><br>
             ${o.items}<br>
-            <small>${formattedDate}</small><br>
+            <small>${formatted}</small><br>
             <i>${o.instruction || ""}</i>
         `;
 
@@ -156,72 +177,13 @@ formattedDate = `${day}-${month}-${year} ` +
     });
 }
 
-async function book() {
-
-    let name = document.getElementById("name").value.trim();
-    let instruction = document.getElementById("instruction").value;
-
-    if (!name) {
-        alert("Please enter your name");
-        return;
-    }
-
-    let selects = document.querySelectorAll("#menu select");
-
-    let items = {};
-
-    selects.forEach(s => {
-        if (s.value !== "0") {
-            items[s.id] = s.value;
-        }
-    });
-
-    if (Object.keys(items).length === 0) {
-        alert("Please select at least one item");
-        return;
-    }
-
-    let res = await fetch("/order", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({name, items, instruction})
-    });
-
-    let data = await res.json();
-
-    if (data.error) {
-        alert(data.error);
-    } else {
-        alert("Order placed successfully!");
-        document.getElementById("name").value = "";
-        document.getElementById("instruction").value = "";
-        loadOrders();
-    }
+// ---------------- ADMIN ----------------
+function openAdmin(){
+    window.open("/admin-ui","_blank");
 }
 
-async function loadOrders() {
-    let res = await fetch("/orders");
-    let data = await res.json();
-
-    let div = document.getElementById("orders");
-    div.innerHTML = "";
-
-    data.forEach(o => {
-        let d = document.createElement("div");
-        d.className = "order";
-        d.innerHTML = `
-            <b>${o.name}</b><br>
-            ${o.items}<br>
-            <small>${o.date}</small><br>
-            <i>${o.instruction || ""}</i>
-        `;
-        div.appendChild(d);
-    });
-}
-
-function openAdmin() {
-    window.open("/admin-ui", "_blank");
-}
+// ---------------- AUTO REFRESH ----------------
+setInterval(loadOrders, 10000); // every 10 sec
 
 loadMenu();
 loadOrders();
