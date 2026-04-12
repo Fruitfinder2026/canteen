@@ -31,9 +31,9 @@ def get_ist_time():
 def get_booking_day():
     today = get_ist_time()
 
-    if today.weekday() == 5:
+    if today.weekday() == 5:   # Saturday → Monday
         return today + timedelta(days=2)
-    elif today.weekday() == 6:
+    elif today.weekday() == 6: # Sunday → Monday
         return today + timedelta(days=1)
     else:
         return today + timedelta(days=1)
@@ -52,7 +52,7 @@ def admin_ui():
 def ping():
     return {"status": "alive"}
 
-# MENU
+# ---------------- MENU ----------------
 @app.get("/menu")
 def get_menu():
     booking_date = get_booking_day()
@@ -64,7 +64,7 @@ def get_menu():
         "items": menu.get(day, [])
     }
 
-# ORDER
+# ---------------- ORDER ----------------
 @app.post("/order")
 def place_order(order: Order, request: Request):
 
@@ -84,7 +84,7 @@ def place_order(order: Order, request: Request):
         "name": order.name,
         "items": json.dumps(order.items),
         "date": formatted_time,
-        "time": formatted_time,   # ✅ IMPORTANT FIX
+        "time": formatted_time,
         "ip": ip,
         "instruction": order.instruction,
         "device": user_agent
@@ -95,9 +95,9 @@ def place_order(order: Order, request: Request):
     except:
         return {"error": "Failed to save order"}
 
-    return {"message": "Order placed"}
+    return {"message": "Order placed successfully"}
 
-# ORDERS (Last 7 Days)
+# ---------------- ORDERS (LAST 7 DAYS) ----------------
 @app.get("/orders")
 def get_orders():
 
@@ -113,18 +113,28 @@ def get_orders():
     now = get_ist_time()
 
     for r in data:
+        dt = None
+
+        # ✅ SUPPORT ALL DATE FORMATS
         try:
             dt = datetime.strptime(r["date"], "%d-%m-%Y %I:%M %p")
         except:
             try:
-                dt = datetime.strptime(r["date"], "%Y-%m-%d")
+                dt = datetime.strptime(r["date"], "%d-%m-%Y %H:%M")
             except:
-                continue
+                try:
+                    dt = datetime.strptime(r["date"], "%Y-%m-%d")
+                except:
+                    continue
 
+        # ✅ FILTER LAST 7 DAYS
         if (now - dt).days > 7:
             continue
 
-        items_dict = json.loads(r["items"])
+        try:
+            items_dict = json.loads(r["items"])
+        except:
+            continue
 
         formatted_items = ", ".join([
             f"{k}({v})" for k, v in items_dict.items() if str(v) != "0"
@@ -139,7 +149,7 @@ def get_orders():
 
     return result
 
-# ADMIN
+# ---------------- ADMIN ----------------
 @app.get("/admin")
 def admin_dashboard(password: str):
 
@@ -157,7 +167,10 @@ def admin_dashboard(password: str):
     count = {}
 
     for r in data:
-        items = json.loads(r["items"])
+        try:
+            items = json.loads(r["items"])
+        except:
+            continue
 
         for item, qty in items.items():
             if item == "Jalebi":
@@ -168,7 +181,7 @@ def admin_dashboard(password: str):
 
     return count
 
-# EXPORT
+# ---------------- EXPORT ----------------
 @app.get("/export")
 def export_excel():
 
@@ -183,8 +196,14 @@ def export_excel():
     data = []
 
     for r in rows:
-        items_dict = json.loads(r["items"])
-        formatted_items = ", ".join([f"{k}({v})" for k, v in items_dict.items()])
+        try:
+            items_dict = json.loads(r["items"])
+        except:
+            continue
+
+        formatted_items = ", ".join([
+            f"{k}({v})" for k, v in items_dict.items()
+        ])
 
         data.append({
             "Name": r["name"],
