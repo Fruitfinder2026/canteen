@@ -113,52 +113,46 @@ APS2 Canteen Booking System
 
 <script>
 
-async function loadMenu() {
-    let res = await fetch("/menu");
+async function loadOrders() {
+    let res = await fetch("/orders");
     let data = await res.json();
 
-    let parts = data.date.split("-");
-    let formattedDate = parts[2] + "-" + parts[1] + "-" + parts[0];
+    let div = document.getElementById("orders");
+    div.innerHTML = "";
 
-    document.getElementById("date").innerText =
-        "Booking for: " + formattedDate + " (" + data.day + ")";
+    data.forEach(o => {
 
-    let menuDiv = document.getElementById("menu");
-    menuDiv.innerHTML = "";
+        // ✅ FORMAT DATE PROPERLY
+        let formattedDate = "";
+        try {
+            let d = new Date(o.date);
 
-    data.items.forEach(item => {
+            formattedDate =
+                let day = String(d.getDate()).padStart(2, '0');
+let month = String(d.getMonth() + 1).padStart(2, '0');
+let year = d.getFullYear();
 
-        let div = document.createElement("div");
-
-        let label = document.createElement("label");
-        label.innerText = item;
-
-        let select = document.createElement("select");
-        select.id = item;
-
-        // Jalebi (grams)
-        if (item === "Jalebi") {
-            [0,50,100,200,500,1000,2000].forEach(g => {
-                let opt = document.createElement("option");
-                opt.value = g === 0 ? "0" : g + "g";
-                opt.text = g === 0 ? "0" : g + " g";
-                select.appendChild(opt);
-            });
-        }
-        // Snacks / Tea
-        else {
-            for (let i = 0; i <= 30; i++) {
-                let opt = document.createElement("option");
-                opt.value = i;
-                opt.text = i;
-                select.appendChild(opt);
-            }
+formattedDate = `${day}-${month}-${year} ` +
+    d.toLocaleTimeString("en-IN", { hour: '2-digit', minute: '2-digit' }); + " " +
+                d.toLocaleTimeString("en-IN", {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+        } catch {
+            formattedDate = o.date;
         }
 
-        div.appendChild(label);
-        div.appendChild(select);
+        let el = document.createElement("div");
+        el.className = "order";
 
-        menuDiv.appendChild(div);
+        el.innerHTML = `
+            <b>${o.name}</b><br>
+            ${o.items}<br>
+            <small>${formattedDate}</small><br>
+            <i>${o.instruction || ""}</i>
+        `;
+
+        div.appendChild(el);
     });
 }
 
