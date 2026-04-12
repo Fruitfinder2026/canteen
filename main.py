@@ -114,20 +114,26 @@ def get_orders():
 
     for r in data:
         dt = None
+        raw_date = str(r.get("date", "")).strip()
 
-        # ✅ SUPPORT ALL DATE FORMATS
-        try:
-            dt = datetime.strptime(r["date"], "%d-%m-%Y %I:%M %p")
-        except:
+        # ✅ SUPER ROBUST PARSER
+        for fmt in [
+            "%d-%m-%Y %I:%M %p",
+            "%d-%m-%Y %H:%M",
+            "%d-%m-%Y",
+            "%Y-%m-%d"
+        ]:
             try:
-                dt = datetime.strptime(r["date"], "%d-%m-%Y %H:%M")
+                dt = datetime.strptime(raw_date, fmt)
+                break
             except:
-                try:
-                    dt = datetime.strptime(r["date"], "%Y-%m-%d")
-                except:
-                    continue
+                continue
 
-        # ✅ FILTER LAST 7 DAYS
+        # ❗ IF STILL FAIL → SHOW ANYWAY (important fix)
+        if not dt:
+            dt = now
+
+        # ✅ FILTER
         if (now - dt).days > 7:
             continue
 
@@ -143,9 +149,12 @@ def get_orders():
         result.append({
             "name": r["name"],
             "items": formatted_items,
-            "date": r["date"],
+            "date": raw_date,
             "instruction": r.get("instruction", "")
         })
+
+    # ✅ SHOW LATEST FIRST (UX FIX)
+    result.reverse()
 
     return result
 
