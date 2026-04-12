@@ -2,29 +2,11 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel
 from datetime import datetime, timedelta
-import sqlite3
 import json
 import pandas as pd
 import requests
 
 app = FastAPI()
-
-# ---------------- DATABASE ----------------
-conn = sqlite3.connect("orders.db", check_same_thread=False)
-cursor = conn.cursor()
-
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS orders (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT,
-    items TEXT,
-    date TEXT,
-    ip TEXT,
-    user_agent TEXT,
-    timestamp TEXT
-)
-""")
-conn.commit()
 
 # ---------------- MENU ----------------
 menu = {
@@ -36,9 +18,11 @@ menu = {
     "Saturday": ["Tea"]
 }
 
+# ---------------- MODEL ----------------
 class Order(BaseModel):
     name: str
     items: dict
+    instruction: str = ""
 
 # ---------------- TIME ----------------
 def get_ist_time():
@@ -64,6 +48,10 @@ def home():
 def admin_ui():
     return HTMLResponse(open("admin.html").read())
 
+@app.get("/ping")
+def ping():
+    return {"status": "alive"}
+
 # MENU
 @app.get("/menu")
 def get_menu():
@@ -88,24 +76,28 @@ def place_order(order: Order, request: Request):
     booking_date = get_booking_day().strftime("%Y-%m-%d")
 
     ip = request.client.host
-    timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
+    user_agent = request.headers.get("user-agent")
+    timestamp = now.strftime("%d-%m-%Y %I:%M %p")
 
-    # Send to Google Sheets
     url = "https://script.google.com/macros/s/AKfycbyoPGSPn13L8gmTzcjpOEjxTBKnWYh74dIJlcpmxDjuHUzM5FIC5g6hAn2aggOQwcCd/exec"
 
     payload = {
         "name": order.name,
         "items": json.dumps(order.items),
-        "date": booking_date,
+        "date": timestamp,
         "ip": ip,
-        "time": timestamp
+        "device": user_agent,
+        "instruction": order.instruction
     }
 
-    requests.post(url, json=payload)
+    try:
+        requests.post(url, json=payload)
+    except:
+        return {"error": "Failed to save order"}
 
     return {"message": "Order placed"}
 
-# ORDERS
+# ORDERS (Last 7 Days)
 @app.get("/orders")
 def get_orders():
 
@@ -115,15 +107,28 @@ def get_orders():
     data = res.json()
 
     result = []
+    now = get_ist_time()
 
     for r in data:
+        try:
+            dt = datetime.strptime(r["date"], "%d-%m-%Y %I:%M %p")
+        except:
+            continue
+
+        if (now - dt).days > 7:
+            continue
+
         items_dict = json.loads(r["items"])
-        formatted = ", ".join([f"{k}({v})" for k, v in items_dict.items()])
+
+        formatted_items = ", ".join([
+            f"{k}({v})" for k, v in items_dict.items() if str(v) != "0"
+        ])
 
         result.append({
             "name": r["name"],
-            "items": formatted,
-            "date": r["date"]
+            "items": formatted_items,
+            "date": r["date"],
+            "instruction": r.get("instruction", "")
         })
 
     return result
@@ -172,7 +177,8 @@ def export_excel():
         data.append({
             "Name": r["name"],
             "Items": formatted_items,
-            "Date": r["date"]
+            "Date": r["date"],
+            "Instruction": r.get("instruction", "")
         })
 
     df = pd.DataFrame(data)

@@ -35,7 +35,7 @@ h3 {
     margin-top: 0;
 }
 
-input {
+input, textarea {
     width: 100%;
     padding: 10px;
     margin-top: 10px;
@@ -95,6 +95,8 @@ APS2 Canteen Booking System
 
     <input type="text" id="name" placeholder="Enter your name">
 
+    <textarea id="instruction" placeholder="Any Special Instructions"></textarea>
+
     <button class="book-btn" onclick="book()">Book Order</button>
 </div>
 
@@ -136,16 +138,16 @@ async function loadMenu() {
 
         // Jalebi (grams)
         if (item === "Jalebi") {
-            [50,100,200,500,1000,2000].forEach(g => {
+            [0,50,100,200,500,1000,2000].forEach(g => {
                 let opt = document.createElement("option");
-                opt.value = g + "g";
-                opt.text = g + " g";
+                opt.value = g === 0 ? "0" : g + "g";
+                opt.text = g === 0 ? "0" : g + " g";
                 select.appendChild(opt);
             });
         }
-        // Tea or snacks
+        // Snacks / Tea
         else {
-            for (let i = 1; i <= 30; i++) {
+            for (let i = 0; i <= 30; i++) {
                 let opt = document.createElement("option");
                 opt.value = i;
                 opt.text = i;
@@ -163,6 +165,7 @@ async function loadMenu() {
 async function book() {
 
     let name = document.getElementById("name").value.trim();
+    let instruction = document.getElementById("instruction").value;
 
     if (!name) {
         alert("Please enter your name");
@@ -174,13 +177,20 @@ async function book() {
     let items = {};
 
     selects.forEach(s => {
-        items[s.id] = s.value;
+        if (s.value !== "0") {
+            items[s.id] = s.value;
+        }
     });
+
+    if (Object.keys(items).length === 0) {
+        alert("Please select at least one item");
+        return;
+    }
 
     let res = await fetch("/order", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({name, items})
+        body: JSON.stringify({name, items, instruction})
     });
 
     let data = await res.json();
@@ -189,6 +199,8 @@ async function book() {
         alert(data.error);
     } else {
         alert("Order placed successfully!");
+        document.getElementById("name").value = "";
+        document.getElementById("instruction").value = "";
         loadOrders();
     }
 }
@@ -206,7 +218,8 @@ async function loadOrders() {
         d.innerHTML = `
             <b>${o.name}</b><br>
             ${o.items}<br>
-            <small>${o.date}</small>
+            <small>${o.date}</small><br>
+            <i>${o.instruction || ""}</i>
         `;
         div.appendChild(d);
     });
