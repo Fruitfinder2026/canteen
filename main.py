@@ -73,25 +73,25 @@ def place_order(order: Order, request: Request):
     if now.hour >= 19:
         return {"error": "Booking closed after 7 PM"}
 
-    booking_date = get_booking_day().strftime("%Y-%m-%d")
-
     ip = request.client.host
     user_agent = request.headers.get("user-agent")
-    timestamp = now.strftime("%d-%m-%Y %I:%M %p")
+
+    formatted_time = now.strftime("%d-%m-%Y %I:%M %p")
 
     url = "https://script.google.com/macros/s/AKfycbyoPGSPn13L8gmTzcjpOEjxTBKnWYh74dIJlcpmxDjuHUzM5FIC5g6hAn2aggOQwcCd/exec"
 
     payload = {
         "name": order.name,
         "items": json.dumps(order.items),
-        "date": timestamp,
+        "date": formatted_time,
+        "time": formatted_time,   # ✅ IMPORTANT FIX
         "ip": ip,
-        "device": user_agent,
-        "instruction": order.instruction
+        "instruction": order.instruction,
+        "device": user_agent
     }
 
     try:
-        requests.post(url, json=payload)
+        requests.post(url, json=payload, timeout=5)
     except:
         return {"error": "Failed to save order"}
 
@@ -103,8 +103,11 @@ def get_orders():
 
     url = "https://script.google.com/macros/s/AKfycbyoPGSPn13L8gmTzcjpOEjxTBKnWYh74dIJlcpmxDjuHUzM5FIC5g6hAn2aggOQwcCd/exec"
 
-    res = requests.get(url)
-    data = res.json()
+    try:
+        res = requests.get(url, timeout=5)
+        data = res.json()
+    except:
+        return []
 
     result = []
     now = get_ist_time()
@@ -113,7 +116,10 @@ def get_orders():
         try:
             dt = datetime.strptime(r["date"], "%d-%m-%Y %I:%M %p")
         except:
-            continue
+            try:
+                dt = datetime.strptime(r["date"], "%Y-%m-%d")
+            except:
+                continue
 
         if (now - dt).days > 7:
             continue
@@ -142,8 +148,11 @@ def admin_dashboard(password: str):
 
     url = "https://script.google.com/macros/s/AKfycbyoPGSPn13L8gmTzcjpOEjxTBKnWYh74dIJlcpmxDjuHUzM5FIC5g6hAn2aggOQwcCd/exec"
 
-    res = requests.get(url)
-    data = res.json()
+    try:
+        res = requests.get(url, timeout=5)
+        data = res.json()
+    except:
+        return {}
 
     count = {}
 
@@ -165,8 +174,11 @@ def export_excel():
 
     url = "https://script.google.com/macros/s/AKfycbyoPGSPn13L8gmTzcjpOEjxTBKnWYh74dIJlcpmxDjuHUzM5FIC5g6hAn2aggOQwcCd/exec"
 
-    res = requests.get(url)
-    rows = res.json()
+    try:
+        res = requests.get(url, timeout=5)
+        rows = res.json()
+    except:
+        return {"error": "Failed to fetch data"}
 
     data = []
 
