@@ -31,9 +31,9 @@ def get_ist_time():
 def get_booking_day():
     today = get_ist_time()
 
-    if today.weekday() == 5:   # Saturday → Monday
+    if today.weekday() == 5:   # Saturday
         return today + timedelta(days=2)
-    elif today.weekday() == 6: # Sunday → Monday
+    elif today.weekday() == 6: # Sunday
         return today + timedelta(days=1)
     else:
         return today + timedelta(days=1)
@@ -97,7 +97,7 @@ def place_order(order: Order, request: Request):
 
     return {"message": "Order placed successfully"}
 
-# ---------------- ORDERS (LAST 7 DAYS) ----------------
+# ---------------- ORDERS ----------------
 @app.get("/orders")
 def get_orders():
 
@@ -113,10 +113,11 @@ def get_orders():
     now = get_ist_time()
 
     for r in data:
-        dt = None
-        raw_date = str(r.get("date", "")).strip()
 
-        # ✅ SUPER ROBUST PARSER
+        raw_date = str(r.get("date", "")).strip()
+        dt = None
+
+        # 🔥 robust parsing (ALL formats supported)
         for fmt in [
             "%d-%m-%Y %I:%M %p",
             "%d-%m-%Y %H:%M",
@@ -129,11 +130,11 @@ def get_orders():
             except:
                 continue
 
-        # ❗ IF STILL FAIL → SHOW ANYWAY (important fix)
+        # fallback (never skip order)
         if not dt:
             dt = now
 
-        # ✅ FILTER
+        # last 7 days filter
         if (now - dt).days > 7:
             continue
 
@@ -153,7 +154,7 @@ def get_orders():
             "instruction": r.get("instruction", "")
         })
 
-    # ✅ SHOW LATEST FIRST (UX FIX)
+    # latest first
     result.reverse()
 
     return result
@@ -174,8 +175,13 @@ def admin_dashboard(password: str):
         return {}
 
     count = {}
+    today = get_ist_time().strftime("%d-%m-%Y")
 
     for r in data:
+
+        if today not in str(r.get("date", "")):
+            continue
+
         try:
             items = json.loads(r["items"])
         except:
@@ -189,12 +195,6 @@ def admin_dashboard(password: str):
                 count[item] = count.get(item, 0) + int(qty)
 
     return count
-# ADD TODAY FILTER
-today = get_ist_time().strftime("%d-%m-%Y")
-
-for r in data:
-    if today not in r.get("date",""):
-        continue
 
 # ---------------- EXPORT ----------------
 @app.get("/export")
