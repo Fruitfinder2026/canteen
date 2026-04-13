@@ -1,30 +1,79 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, FileResponse
+﻿from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from datetime import datetime, timedelta
-import sqlite3
-import json
-import pandas as pd
-import requests
+import json, requests
 
 app = FastAPI()
 
-# ---------------- DATABASE ----------------
-conn = sqlite3.connect("orders.db", check_same_thread=False)
-cursor = conn.cursor()
+SHEET_URL = "https://script.google.com/macros/s/AKfycbyoPGSPn13L8gmTzcjpOEjxTBKnWYh74dIJlcpmxDjuHUzM5FIC5g6hAn2aggOQwcCd/exec"
 
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS orders (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT,
-    items TEXT,
-    date TEXT,
-    ip TEXT,
-    user_agent TEXT,
-    timestamp TEXT
-)
-""")
-conn.commit()
+from fastapi import Body
+
+@app.post("/save-settings")
+def save_settings(data: dict = Body(...)):
+
+    cutoff = data.get("cutoff", "19:00")
+    whatsapp = data.get("whatsapp", "off")
+
+    payload = {
+        "type": "settings",
+        "items": f"cutoff={cutoff};whatsapp={whatsapp}"
+    }
+
+    try:
+        requests.post(SHEET_URL, json=payload)
+        return {"status": "saved"}
+    except:
+        return {"error": "failed"}
+# ---------------- MODEL ----------------
+class Order(BaseModel):
+    name: str
+    items: dict
+    instruction: str = ""
+
+# ---------------- TIME ----------------
+def get_ist():
+    return datetime.utcnow() + timedelta(hours=5, minutes=30)
+
+# ---------------- SETTINGS ----------------
+def get_settings():
+
+    try:
+        data = requests.get(SHEET_URL).json()
+    except:
+        return {"cutoff": "19:00", "whatsapp": "off"}
+
+    for r in data:
+        if r["name"] == "SETTINGS":
+            raw = r["items"]
+            parts = dict(x.split("=") for x in raw.split(";"))
+            return parts
+
+    return {"cutoff": "19:00", "whatsapp": "off"}
+
+# ---------------- BOOKING DAY ----------------
+def get_booking_day():
+
+    now = get_ist()
+    settings = get_settings()
+
+    cutoff = settings.get("cutoff", "19:00")
+    cutoff_hour = int(cutoff.split(":")[0])
+
+    if now.hour < cutoff_hour:
+        return now  # SAME DAY
+    else:
+        return now + timedelta(days=1)
+
+# ---------------- ROUTES ----------------
+@app.get("/")
+def home():
+    return HTMLResponse(open("index.html").read())
+
+@app.get("/admin-ui")
+def admin():
+    return HTMLResponse(open("admin.html").read())
 
 # ---------------- MENU ----------------
 menu = {
@@ -36,147 +85,94 @@ menu = {
     "Saturday": ["Tea"]
 }
 
-class Order(BaseModel):
-    name: str
-    items: dict
-
-# ---------------- TIME ----------------
-def get_ist_time():
-    return datetime.utcnow() + timedelta(hours=5, minutes=30)
-
-def get_booking_day():
-    today = get_ist_time()
-
-    if today.weekday() == 5:
-        return today + timedelta(days=2)
-    elif today.weekday() == 6:
-        return today + timedelta(days=1)
-    else:
-        return today + timedelta(days=1)
-
-# ---------------- ROUTES ----------------
-
-@app.get("/")
-def home():
-    return HTMLResponse(open("index.html").read())
-
-@app.get("/admin-ui")
-def admin_ui():
-    return HTMLResponse(open("admin.html").read())
-
-# MENU
 @app.get("/menu")
-def get_menu():
-    booking_date = get_booking_day()
-    day = booking_date.strftime("%A")
+def menu_api():
+
+    d = get_booking_day()
+    day = d.strftime("%A")
 
     return {
-        "date": booking_date.strftime("%Y-%m-%d"),
+        "date": d.strftime("%Y-%m-%d"),
         "day": day,
         "items": menu.get(day, [])
     }
 
-# ORDER
+# ---------------- ORDER ----------------
 @app.post("/order")
-def place_order(order: Order, request: Request):
+def order(o: Order, request: Request):
 
-    now = get_ist_time()
+    now = get_ist()
+    settings = get_settings()
 
-    if now.hour >= 19:
-        return {"error": "Booking closed after 7 PM"}
+    cutoff_hour = int(settings.get("cutoff", "19:00").split(":")[0])
 
-    booking_date = get_booking_day().strftime("%Y-%m-%d")
-
-    ip = request.client.host
-    timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
-
-    # Send to Google Sheets
-    url = "https://script.google.com/macros/s/AKfycbyoPGSPn13L8gmTzcjpOEjxTBKnWYh74dIJlcpmxDjuHUzM5FIC5g6hAn2aggOQwcCd/exec"
+    if now.hour >= cutoff_hour:
+        return {"error": "Booking closed"}
 
     payload = {
-        "name": order.name,
-        "items": json.dumps(order.items),
-        "date": booking_date,
-        "ip": ip,
-        "time": timestamp
+        "name": o.name,
+        "items": json.dumps(o.items),
+        "date": now.strftime("%d-%m-%Y %I:%M %p"),
+        "time": now.strftime("%d-%m-%Y %I:%M %p"),
+        "ip": request.client.host,
+        "instruction": o.instruction,
+        "device": request.headers.get("user-agent")
     }
 
-    requests.post(url, json=payload)
+    requests.post(SHEET_URL, json=payload)
 
-    return {"message": "Order placed"}
+    # -------- WhatsApp --------
+    if settings.get("whatsapp") == "on":
 
-# ORDERS
+        msg = f"{o.name} ordered {o.items}"
+
+        try:
+            requests.get(
+                f"https://api.callmebot.com/whatsapp.php?phone=YOUR_NUMBER&text={msg}&apikey=YOUR_API_KEY"
+            )
+        except:
+            pass
+
+    return {"msg": "Order placed"}
+
+# ---------------- ORDERS ----------------
 @app.get("/orders")
-def get_orders():
+def orders():
 
-    url = "https://script.google.com/macros/s/AKfycbyoPGSPn13L8gmTzcjpOEjxTBKnWYh74dIJlcpmxDjuHUzM5FIC5g6hAn2aggOQwcCd/exec"
-
-    res = requests.get(url)
-    data = res.json()
-
+    data = requests.get(SHEET_URL).json()
     result = []
+    now = get_ist()
 
     for r in data:
-        items_dict = json.loads(r["items"])
-        formatted = ", ".join([f"{k}({v})" for k, v in items_dict.items()])
+
+        if r["name"] == "SETTINGS":
+            continue
+
+        raw = r.get("date","")
+
+        try:
+            dt = datetime.strptime(raw, "%d-%m-%Y %I:%M %p")
+        except:
+            dt = now
+
+        if (now - dt).days > 7:
+            continue
+
+        items = json.loads(r["items"])
+
+        formatted = ", ".join(f"{k}({v})" for k,v in items.items() if v!="0")
 
         result.append({
             "name": r["name"],
             "items": formatted,
-            "date": r["date"]
+            "date": raw,
+            "instruction": r.get("instruction","")
         })
 
+    result.reverse()
     return result
 
-# ADMIN
-@app.get("/admin")
-def admin_dashboard(password: str):
+@app.post("/save-settings")
+def save_settings(request: Request):
 
-    if password != "admin123":
-        return {"error": "Unauthorized"}
-
-    url = "https://script.google.com/macros/s/AKfycbyoPGSPn13L8gmTzcjpOEjxTBKnWYh74dIJlcpmxDjuHUzM5FIC5g6hAn2aggOQwcCd/exec"
-
-    res = requests.get(url)
-    data = res.json()
-
-    count = {}
-
-    for r in data:
-        items = json.loads(r["items"])
-
-        for item, qty in items.items():
-            if item == "Jalebi":
-                grams = int(qty.replace("g", ""))
-                count[item] = count.get(item, 0) + grams
-            else:
-                count[item] = count.get(item, 0) + int(qty)
-
-    return count
-
-# EXPORT
-@app.get("/export")
-def export_excel():
-
-    url = "https://script.google.com/macros/s/AKfycbyoPGSPn13L8gmTzcjpOEjxTBKnWYh74dIJlcpmxDjuHUzM5FIC5g6hAn2aggOQwcCd/exec"
-
-    res = requests.get(url)
-    rows = res.json()
-
-    data = []
-
-    for r in rows:
-        items_dict = json.loads(r["items"])
-        formatted_items = ", ".join([f"{k}({v})" for k, v in items_dict.items()])
-
-        data.append({
-            "Name": r["name"],
-            "Items": formatted_items,
-            "Date": r["date"]
-        })
-
-    df = pd.DataFrame(data)
-    file_path = "orders.xlsx"
-    df.to_excel(file_path, index=False)
-
-    return FileResponse(file_path, filename="orders.xlsx")
+    data = request.json()

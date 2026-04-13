@@ -5,41 +5,36 @@
 <title>Admin Panel</title>
 
 <style>
-body {
-    font-family: Arial;
-    padding: 20px;
-    background: #f4f6f8;
-}
+body { font-family: Arial; padding:15px; background:#f4f6f8; }
 
 .card {
-    background: white;
-    padding: 15px;
-    border-radius: 10px;
-    margin-bottom: 15px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    background:white;
+    padding:15px;
+    border-radius:10px;
+    margin-bottom:15px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.1);
 }
 
-input {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 10px;
+input, select {
+    width:100%;
+    padding:10px;
+    margin-bottom:10px;
 }
 
 button {
-    width: 100%;
-    padding: 10px;
-    background: #2980b9;
-    color: white;
-    border: none;
-    border-radius: 6px;
+    width:100%;
+    padding:12px;
+    background:#2980b9;
+    color:white;
+    border:none;
+    border-radius:6px;
 }
 
 .item {
-    border-bottom: 1px solid #ddd;
-    padding: 8px 0;
+    padding:8px 0;
+    border-bottom:1px solid #eee;
 }
 </style>
-
 </head>
 
 <body>
@@ -52,6 +47,21 @@ button {
 </div>
 
 <div class="card" id="data"></div>
+
+<div class="card">
+<h3>Booking Controls</h3>
+
+<label>Cutoff Time</label>
+<input type="time" id="cutoff" value="19:00">
+
+<label>WhatsApp Alerts</label>
+<select id="whatsapp">
+    <option value="off">OFF</option>
+    <option value="on">ON</option>
+</select>
+
+<button onclick="saveSettings()">Save Settings</button>
+</div>
 
 <div class="card">
 <button onclick="download()">Download Excel</button>
@@ -72,15 +82,37 @@ async function loadAdmin() {
     }
 
     let div = document.getElementById("data");
-    div.innerHTML = "<h3>Today's Total</h3>";
+    div.innerHTML = "<h3>Today's Totals</h3>";
 
-    for (let k in data) {
-        div.innerHTML += `<div class="item"><b>${k}</b>: ${data[k]}</div>`;
+    for (let item in data) {
+        div.innerHTML += `<div class="item"><b>${item}</b>: ${data[item]}</div>`;
     }
 }
 
+// ---------------- SAVE SETTINGS ----------------
+async function saveSettings() {
+
+    let cutoff = document.getElementById("cutoff").value;
+    let whatsapp = document.getElementById("whatsapp").value;
+
+    let res = await fetch("/save-settings", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({cutoff, whatsapp})
+    });
+
+    let data = await res.json();
+
+    if (data.status === "saved") {
+        alert("Settings saved successfully");
+    } else {
+        alert("Failed");
+    }
+}
+
+// ---------------- DOWNLOAD ----------------
 function download() {
-    window.open("/export", "_blank");
+    window.open("/export","_blank");
 }
 
 </script>
