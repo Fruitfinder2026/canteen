@@ -10,7 +10,6 @@ from fastapi import Body
 app = FastAPI()
 
 SHEET_URL = "https://script.google.com/macros/s/AKfycbyoPGSPn13L8gmTzcjpOEjxTBKnWYh74dIJlcpmxDjuHUzM5FIC5g6hAn2aggOQwcCd/exec"
-ADMIN_WHATSAPP = "917021740931"  # <-- change
 
 # ---------------- SETTINGS ----------------
 def get_settings():
@@ -43,18 +42,8 @@ def save_settings(data: dict = Body(...)):
         "items": f"cutoff={data['cutoff']};whatsapp={data['whatsapp']}"
     }
 
-    res = requests.post(SHEET_URL, json=payload)
-    return {"status":"saved"} if res.status_code==200 else {"error":"fail"}
-
-# ---------------- MENU ----------------
-menu = {
-    "Monday": ["Samosa","Gulab Jamun","Jalebi"],
-    "Tuesday": ["Kachori","Gulab Jamun","Jalebi"],
-    "Wednesday": ["Veg Cutlet","Gulab Jamun","Jalebi"],
-    "Thursday": ["Onion Pakoda","Aloo Bonda","Gulab Jamun","Jalebi"],
-    "Friday": ["Boondi Laddu","Gulab Jamun","Jalebi"],
-    "Saturday": ["Tea"]
-}
+    requests.post(SHEET_URL, json=payload)
+    return {"status":"saved"}
 
 # ---------------- MODEL ----------------
 class Order(BaseModel):
@@ -66,6 +55,25 @@ class Order(BaseModel):
 def ist():
     return datetime.utcnow()+timedelta(hours=5,minutes=30)
 
+# ---------------- DATE PARSER (🔥 CORE FIX) ----------------
+def parse_date(raw):
+    raw = str(raw).strip()
+
+    formats = [
+        "%d-%m-%Y %I:%M %p",
+        "%d-%m-%Y %H:%M",
+        "%d-%m-%Y",
+        "%Y-%m-%d"
+    ]
+
+    for f in formats:
+        try:
+            return datetime.strptime(raw, f)
+        except:
+            continue
+
+    return None
+
 # ---------------- ROUTES ----------------
 @app.get("/")
 def home():
@@ -75,7 +83,16 @@ def home():
 def admin():
     return HTMLResponse(open("admin.html").read())
 
-# ---------------- MENU LOGIC ----------------
+# ---------------- MENU ----------------
+menu = {
+    "Monday": ["Samosa","Gulab Jamun","Jalebi"],
+    "Tuesday": ["Kachori","Gulab Jamun","Jalebi"],
+    "Wednesday": ["Veg Cutlet","Gulab Jamun","Jalebi"],
+    "Thursday": ["Onion Pakoda","Aloo Bonda","Gulab Jamun","Jalebi"],
+    "Friday": ["Boondi Laddu","Gulab Jamun","Jalebi"],
+    "Saturday": ["Tea"]
+}
+
 @app.get("/menu")
 def get_menu():
     now = ist()
@@ -129,15 +146,9 @@ def order(o:Order, request:Request):
 
     requests.post(SHEET_URL, json=payload)
 
-    # WhatsApp
-    wa = ""
-    if settings.get("whatsapp")=="on":
-        msg = f"New Order\n{o.name}\n{o.items}"
-        
+    return {"message":"ok"}
 
-    return {"message":"ok","whatsapp":wa}
-
-# ---------------- ORDERS ----------------
+# ---------------- ORDERS (🔥 FIXED) ----------------
 @app.get("/orders")
 def orders():
 
@@ -152,22 +163,7 @@ def orders():
 
     for r in data:
 
-        raw_date = str(r.get("date","")).strip()
-        dt = None
-
-        # 🔥 MULTI FORMAT SUPPORT (THIS FIXES YOUR ISSUE)
-        for fmt in [
-            "%d-%m-%Y %I:%M %p",
-            "%d-%m-%Y %H:%M",
-            "%d-%m-%Y",
-            "%Y-%m-%d"
-        ]:
-            try:
-                dt = datetime.strptime(raw_date, fmt)
-                break
-            except:
-                continue
-
+        dt = parse_date(r.get("date"))
         if not dt:
             continue
 
@@ -186,13 +182,13 @@ def orders():
         result.append({
             "name": r["name"],
             "items": items_text,
-            "date": raw_date,
+            "date": r["date"],
             "instruction": r.get("instruction","")
         })
 
     return list(reversed(result))
 
-# ---------------- ADMIN ----------------
+# ---------------- ADMIN (🔥 FIXED) ----------------
 @app.get("/admin")
 def admin(password:str):
 
@@ -206,16 +202,15 @@ def admin(password:str):
         return {}
 
     now = ist()
-    today_str = now.strftime("%d-%m-%Y")
-
     count = {}
 
     for r in data:
 
-        raw_date = str(r.get("date",""))
+        dt = parse_date(r.get("date"))
+        if not dt:
+            continue
 
-        # ✅ STRONG MATCH
-        if today_str not in raw_date:
+        if dt.date() != now.date():
             continue
 
         try:
@@ -247,8 +242,11 @@ def export():
     data=[]
 
     for r in rows:
-        items=json.loads(r["items"])
-        text=", ".join([f"{k}({v})" for k,v in items.items()])
+        try:
+            items=json.loads(r["items"])
+            text=", ".join([f"{k}({v})" for k,v in items.items()])
+        except:
+            continue
 
         data.append({
             "Name":r["name"],
