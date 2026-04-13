@@ -5,9 +5,34 @@ from datetime import datetime, timedelta
 import json
 import pandas as pd
 import requests
+from fastapi import Body
 
 app = FastAPI()
-from fastapi import Body
+
+
+SHEET_URL = "https://script.google.com/macros/s/AKfycbyoPGSPn13L8gmTzcjpOEjxTBKnWYh74dIJlcpmxDjuHUzM5FIC5g6hAn2aggOQwcCd/exec"
+
+def get_settings():
+    try:
+        res = requests.get(SHEET_URL, timeout=5)
+        data = res.json()
+
+        for r in data:
+            if str(r.get("name")).strip().upper() == "SETTINGS":
+                settings_str = r.get("items", "")
+
+                settings = {}
+                for part in settings_str.split(";"):
+                    if "=" in part:
+                        k, v = part.split("=")
+                        settings[k.strip()] = v.strip()
+
+                return settings
+
+    except:
+        pass
+
+    return {"cutoff": "19:00", "whatsapp": "off"}  # fallback
 
 @app.post("/save-settings")
 def save_settings(data: dict = Body(...)):
@@ -21,10 +46,15 @@ def save_settings(data: dict = Body(...)):
     }
 
     try:
-        requests.post(SHEET_URL, json=payload)
-        return {"status": "saved"}
-    except:
-        return {"error": "failed"}
+        res = requests.post(SHEET_URL, json=payload, timeout=5)
+
+        if res.status_code == 200:
+            return {"status": "saved"}
+        else:
+            return {"error": "sheet error"}
+
+    except Exception as e:
+        return {"error": str(e)}
 # ---------------- MENU ----------------
 menu = {
     "Monday": ["Samosa", "Gulab Jamun", "Jalebi"],
@@ -87,15 +117,23 @@ def place_order(order: Order, request: Request):
 
     now = get_ist_time()
 
-    if now.hour >= 19:
-        return {"error": "Booking closed after 7 PM"}
+    # 🔥 GET DYNAMIC SETTINGS
+    settings = get_settings()
+    cutoff = settings.get("cutoff", "19:00")
+
+    try:
+        cutoff_hour, cutoff_min = map(int, cutoff.split(":"))
+    except:
+        cutoff_hour, cutoff_min = 19, 0  # fallback
+
+    # 🔥 APPLY DYNAMIC CUTOFF
+    if (now.hour > cutoff_hour) or (now.hour == cutoff_hour and now.minute >= cutoff_min):
+        return {"error": f"Booking closed after {cutoff}"}
 
     ip = request.client.host
     user_agent = request.headers.get("user-agent")
 
     formatted_time = now.strftime("%d-%m-%Y %I:%M %p")
-
-    url = "https://script.google.com/macros/s/AKfycbyoPGSPn13L8gmTzcjpOEjxTBKnWYh74dIJlcpmxDjuHUzM5FIC5g6hAn2aggOQwcCd/exec"
 
     payload = {
         "name": order.name,
@@ -108,7 +146,7 @@ def place_order(order: Order, request: Request):
     }
 
     try:
-        requests.post(url, json=payload, timeout=5)
+        requests.post(SHEET_URL, json=payload, timeout=5)
     except:
         return {"error": "Failed to save order"}
 
@@ -249,7 +287,3 @@ def export_excel():
     df.to_excel(file_path, index=False)
 
     return FileResponse(file_path, filename="orders.xlsx")
-@app.post("/save-settings")
-def save_settings(request: Request):
-
-    data = request.json()
