@@ -133,7 +133,7 @@ def order(o:Order, request:Request):
     wa = ""
     if settings.get("whatsapp")=="on":
         msg = f"New Order\n{o.name}\n{o.items}"
-        wa = f"https://wa.me/{ADMIN_WHATSAPP}?text={requests.utils.quote(msg)}"
+        
 
     return {"message":"ok","whatsapp":wa}
 
@@ -141,32 +141,56 @@ def order(o:Order, request:Request):
 @app.get("/orders")
 def orders():
 
-    res = requests.get(SHEET_URL)
-    data = res.json()
+    try:
+        res = requests.get(SHEET_URL, timeout=5)
+        data = res.json()
+    except:
+        return []
 
     now = ist()
-    out=[]
+    result = []
 
     for r in data:
+
+        raw_date = str(r.get("date","")).strip()
+        dt = None
+
+        # 🔥 MULTI FORMAT SUPPORT (THIS FIXES YOUR ISSUE)
+        for fmt in [
+            "%d-%m-%Y %I:%M %p",
+            "%d-%m-%Y %H:%M",
+            "%d-%m-%Y",
+            "%Y-%m-%d"
+        ]:
+            try:
+                dt = datetime.strptime(raw_date, fmt)
+                break
+            except:
+                continue
+
+        if not dt:
+            continue
+
+        if (now - dt).days > 7:
+            continue
+
         try:
-            dt = datetime.strptime(r["date"],"%d-%m-%Y %I:%M %p")
+            items = json.loads(r["items"])
         except:
             continue
 
-        if (now-dt).days>7:
-            continue
+        items_text = ", ".join([
+            f"{k}({v})" for k,v in items.items() if str(v)!="0"
+        ])
 
-        items=json.loads(r["items"])
-        text=", ".join([f"{k}({v})" for k,v in items.items() if str(v)!="0"])
-
-        out.append({
-            "name":r["name"],
-            "items":text,
-            "date":r["date"],
-            "instruction":r.get("instruction","")
+        result.append({
+            "name": r["name"],
+            "items": items_text,
+            "date": raw_date,
+            "instruction": r.get("instruction","")
         })
 
-    return list(reversed(out))
+    return list(reversed(result))
 
 # ---------------- ADMIN ----------------
 @app.get("/admin")

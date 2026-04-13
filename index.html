@@ -151,7 +151,6 @@ async function book(){
     if(data.error) alert(data.error);
     else{
         alert("Order placed");
-        if(data.whatsapp) window.open(data.whatsapp);
         loadOrders();
     }
 }
