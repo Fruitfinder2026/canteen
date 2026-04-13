@@ -79,7 +79,7 @@ def parse_date(raw):
 def home():
     return HTMLResponse(open("index.html").read())
 
-@app.get("/admin-ui")
+@app.get("/admin")
 def admin():
     return HTMLResponse(open("admin.html").read())
 
