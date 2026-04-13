@@ -89,11 +89,10 @@ async function loadAdmin(){
 
         let data = await res.json();
 
-        // STRICT CHECK
         if(!data || data.error){
-    alert("Wrong password");
-    return;
-}
+            alert("Wrong password");
+            return;
+        }
 
         authenticated = true;
 
@@ -103,6 +102,10 @@ async function loadAdmin(){
 
         let div = document.getElementById("data");
         div.innerHTML = "<h3>Today's Totals</h3>";
+
+        if(Object.keys(data).length === 0){
+            div.innerHTML += "<p>No orders today</p>";
+        }
 
         for(let item in data){
             div.innerHTML += `<div class="item"><b>${item}</b>: ${data[item]}</div>`;

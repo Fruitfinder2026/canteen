@@ -191,11 +191,11 @@ def orders():
     return list(reversed(result))
 
 # ---------------- ADMIN (🔥 FIXED) ----------------
-@app.get("/admin")
-def admin(password:str):
+@app.get("/admin-data")
+def admin_data(password: str):
 
-    if password!="admin123":
-        return {"error":"unauthorized"}
+    if password != "admin123":
+        return {"error": "unauthorized"}
 
     try:
         res = requests.get(SHEET_URL, timeout=5)
@@ -209,10 +209,8 @@ def admin(password:str):
     for r in data:
 
         dt = parse_date(r.get("date"))
-
-        # ✅ fallback (IMPORTANT)
         if not dt:
-            dt = now
+            continue
 
         if dt.date() != now.date():
             continue
@@ -222,17 +220,17 @@ def admin(password:str):
         except:
             continue
 
-        for k,v in items.items():
+        for k, v in items.items():
 
             if str(v) == "0":
                 continue
 
             if k == "Jalebi":
-                val = int(v.replace("g",""))
+                val = int(str(v).replace("g",""))
             else:
                 val = int(v)
 
-            count[k] = count.get(k,0) + val
+            count[k] = count.get(k, 0) + val
 
     return count
 
