@@ -26,7 +26,6 @@ button {
 }
 
 .book-btn { background:#27ae60; color:white; }
-.admin-btn { background:#2980b9; color:white; }
 
 input, textarea, select {
     width:100%; padding:10px; margin-top:8px;
@@ -52,10 +51,6 @@ input, textarea, select {
 </div>
 
 <div class="card">
-    <button class="admin-btn" onclick="openAdmin()">View Admin Dashboard</button>
-</div>
-
-<div class="card">
     <h3>Orders (Last 7 Days)</h3>
     <div id="orders"></div>
 </div>
@@ -64,12 +59,12 @@ input, textarea, select {
 
 <script>
 
-// -------- SETTINGS --------
+// SETTINGS
 async function loadSettings(){
     let res = await fetch("/settings");
     let s = await res.json();
 
-    document.getElementById("date").innerHTML +=
+    document.getElementById("date").innerHTML =
         `<div style="color:red">Cutoff: ${s.cutoff}</div>`;
 
     let now = new Date();
@@ -86,7 +81,7 @@ async function loadSettings(){
     }
 }
 
-// -------- MENU --------
+// MENU
 async function loadMenu(){
     let res=await fetch("/menu");
     let data=await res.json();
@@ -95,12 +90,10 @@ async function loadMenu(){
     menuDiv.innerHTML="";
 
     data.forEach((d,i)=>{
-
         let section=document.createElement("div");
         section.innerHTML=`<h4>${i==0?"Today":"Tomorrow"} - ${d.date}</h4>`;
 
         d.items.forEach(item=>{
-
             let select=document.createElement("select");
             select.id=item+i;
 
@@ -128,9 +121,8 @@ async function loadMenu(){
     });
 }
 
-// -------- BOOK --------
+// BOOK
 async function book(){
-
     let name=document.getElementById("name").value;
     let instruction=document.getElementById("instruction").value;
 
@@ -155,9 +147,30 @@ async function book(){
     }
 }
 
-// -------- ORDERS --------
-async function loadOrders(){
+// ?? FIXED DATE PARSER
+function parseDate(str){
+    try{
+        let [datePart, timePart, ampm] = str.split(" ");
+        let [dd,mm,yyyy] = datePart.split("-");
 
+        if(!timePart) return new Date();
+
+        let [hh,min] = timePart.split(":");
+
+        hh = parseInt(hh);
+        min = parseInt(min);
+
+        if(ampm === "PM" && hh < 12) hh += 12;
+        if(ampm === "AM" && hh === 12) hh = 0;
+
+        return new Date(yyyy, mm-1, dd, hh, min);
+    }catch{
+        return new Date();
+    }
+}
+
+// ORDERS
+async function loadOrders(){
     let res=await fetch("/orders");
     let data=await res.json();
 
@@ -167,7 +180,6 @@ async function loadOrders(){
     let today=new Date().toDateString();
 
     data.forEach(o=>{
-
         let d = parseDate(o.date);
         let isToday=d.toDateString()==today;
 
@@ -184,19 +196,12 @@ async function loadOrders(){
         div.appendChild(el);
     });
 }
-function parseDate(str){
-    let parts = str.split(" ");
-    let dmy = parts[0].split("-");
-    let time = parts[1] || "00:00";
 
-    return new Date(`${dmy[2]}-${dmy[1]}-${dmy[0]} ${time}`);
-}
-// -------- INIT --------
 loadMenu();
 loadOrders();
 loadSettings();
 
-setInterval(loadOrders,10000);
+setInterval(loadOrders,5000);
 
 </script>
 

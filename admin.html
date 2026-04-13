@@ -39,16 +39,15 @@ button {
 
 <body>
 
-<div class="card" id="controls" style="display:none;">
-<h2>Admin Dashboard</h2>
-
+<div class="card">
+<h2>Admin Login</h2>
 <input type="password" id="pass" placeholder="Enter password">
-<button onclick="loadAdmin()">Load Data</button>
+<button onclick="loadAdmin()">Login</button>
 </div>
 
-<div class="card" id="data"></div>
+<div class="card" id="data" style="display:none;"></div>
 
-<div class="card">
+<div class="card" id="controls" style="display:none;">
 <h3>Booking Controls</h3>
 
 <label>Cutoff Time</label>
@@ -56,72 +55,70 @@ button {
 
 <label>WhatsApp Alerts</label>
 <select id="whatsapp">
-    <option value="off">OFF</option>
-    <option value="on">ON</option>
+<option value="off">OFF</option>
+<option value="on">ON</option>
 </select>
 
 <button onclick="saveSettings()">Save Settings</button>
 </div>
 
-<div class="card">
+<div class="card" id="export" style="display:none;">
 <button onclick="download()">Download Excel</button>
 </div>
 
 <script>
 
-let authenticated = false;
+let authenticated=false;
 
-async function loadAdmin() {
+async function loadAdmin(){
 
-    let pass = document.getElementById("pass").value;
+    let pass=document.getElementById("pass").value;
 
-    let res = await fetch("/admin?password=" + pass);
-    let data = await res.json();
+    let res=await fetch("/admin?password="+pass);
+    let data=await res.json();
 
-    if (data.error) {
+    if(data.error){
         alert("Wrong password");
         return;
     }
 
-    authenticated = true;
+    authenticated=true;
 
-    document.getElementById("controls").style.display = "block";
+    document.getElementById("data").style.display="block";
+    document.getElementById("controls").style.display="block";
+    document.getElementById("export").style.display="block";
 
-    let div = document.getElementById("data");
-    div.innerHTML = "<h3>Today's Totals</h3>";
+    let div=document.getElementById("data");
+    div.innerHTML="<h3>Today's Totals</h3>";
 
-    for (let item in data) {
-        div.innerHTML += `<div class="item"><b>${item}</b>: ${data[item]}</div>`;
+    for(let item in data){
+        div.innerHTML+=`<div class="item"><b>${item}</b>: ${data[item]}</div>`;
     }
 }
 
-// ---------------- SAVE SETTINGS ----------------
-async function saveSettings() {
+async function saveSettings(){
 
     if(!authenticated){
         alert("Login first");
         return;
     }
 
-    let cutoff = document.getElementById("cutoff").value;
-    let whatsapp = document.getElementById("whatsapp").value;
+    let cutoff=document.getElementById("cutoff").value;
+    let whatsapp=document.getElementById("whatsapp").value;
 
-    let res = await fetch("/save-settings", {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({cutoff, whatsapp})
+    let res=await fetch("/save-settings",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({cutoff,whatsapp})
     });
 
-    let data = await res.json();
+    let data=await res.json();
 
-    if (data.status === "saved") {
-        alert("Settings saved successfully");
-    } else {
-        alert("Failed");
-    }
+    if(data.status==="saved") alert("Saved");
+    else alert("Failed");
 }
 
-function download() {
+function download(){
     window.open("/export","_blank");
 }
 
