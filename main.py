@@ -164,8 +164,10 @@ def orders():
     for r in data:
 
         dt = parse_date(r.get("date"))
+
+        # ✅ DO NOT SKIP → fallback
         if not dt:
-            continue
+            dt = now
 
         if (now - dt).days > 7:
             continue
@@ -207,8 +209,10 @@ def admin(password:str):
     for r in data:
 
         dt = parse_date(r.get("date"))
+
+        # ✅ fallback (IMPORTANT)
         if not dt:
-            continue
+            dt = now
 
         if dt.date() != now.date():
             continue
