@@ -80,7 +80,7 @@ async function loadAdmin(){
     }
 
     try{
-        let res = await fetch("/admin?password=" + pass);
+        let res = await fetch("/admin-data?password=" + pass);
 
         if(!res.ok){
             alert("Server error");
@@ -89,11 +89,11 @@ async function loadAdmin(){
 
         let data = await res.json();
 
-        // ?? STRICT CHECK
-        if(!data || data.error || Object.keys(data).length === 0){
-            alert("Wrong password");
-            return;
-        }
+        // STRICT CHECK
+        if(!data || data.error){
+    alert("Wrong password");
+    return;
+}
 
         authenticated = true;
 

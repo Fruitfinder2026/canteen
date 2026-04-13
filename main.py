@@ -80,7 +80,7 @@ def home():
     return HTMLResponse(open("index.html").read())
 
 @app.get("/admin")
-def admin():
+def admin_page():
     return HTMLResponse(open("admin.html").read())
 
 # ---------------- MENU ----------------
