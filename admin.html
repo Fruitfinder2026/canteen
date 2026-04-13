@@ -72,27 +72,44 @@ let authenticated=false;
 
 async function loadAdmin(){
 
-    let pass=document.getElementById("pass").value;
+    let pass = document.getElementById("pass").value.trim();
 
-    let res=await fetch("/admin?password="+pass);
-    let data=await res.json();
-
-    if(data.error){
-        alert("Wrong password");
+    if(!pass){
+        alert("Enter password");
         return;
     }
 
-    authenticated=true;
+    try{
+        let res = await fetch("/admin?password=" + pass);
 
-    document.getElementById("data").style.display="block";
-    document.getElementById("controls").style.display="block";
-    document.getElementById("export").style.display="block";
+        if(!res.ok){
+            alert("Server error");
+            return;
+        }
 
-    let div=document.getElementById("data");
-    div.innerHTML="<h3>Today's Totals</h3>";
+        let data = await res.json();
 
-    for(let item in data){
-        div.innerHTML+=`<div class="item"><b>${item}</b>: ${data[item]}</div>`;
+        // ?? STRICT CHECK
+        if(!data || data.error || Object.keys(data).length === 0){
+            alert("Wrong password");
+            return;
+        }
+
+        authenticated = true;
+
+        document.getElementById("data").style.display="block";
+        document.getElementById("controls").style.display="block";
+        document.getElementById("export").style.display="block";
+
+        let div = document.getElementById("data");
+        div.innerHTML = "<h3>Today's Totals</h3>";
+
+        for(let item in data){
+            div.innerHTML += `<div class="item"><b>${item}</b>: ${data[item]}</div>`;
+        }
+
+    }catch(err){
+        alert("Login failed (network/server issue)");
     }
 }
 
