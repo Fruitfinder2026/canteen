@@ -64,129 +64,134 @@ input, textarea, select {
 
 <script>
 
-// ---------------- MENU ----------------
-async function loadMenu() {
-    let res = await fetch("/menu");
-    let data = await res.json();
+// -------- SETTINGS --------
+async function loadSettings(){
+    let res = await fetch("/settings");
+    let s = await res.json();
 
-    let parts = data.date.split("-");
-    document.getElementById("date").innerText =
-        "Booking for: " + parts[2]+"-"+parts[1]+"-"+parts[0] + " (" + data.day + ")";
+    document.getElementById("date").innerHTML +=
+        `<div style="color:red">Cutoff: ${s.cutoff}</div>`;
 
-    let menuDiv = document.getElementById("menu");
-    menuDiv.innerHTML = "";
+    let now = new Date();
+    let [h,m]=s.cutoff.split(":");
 
-    data.items.forEach(item => {
+    let cutoff=new Date();
+    cutoff.setHours(h,m);
 
-        let select = document.createElement("select");
-        select.id = item;
+    if(now>=cutoff){
+        let btn=document.querySelector(".book-btn");
+        btn.disabled=true;
+        btn.innerText="Booking Closed";
+        btn.style.background="gray";
+    }
+}
 
-        if (item === "Jalebi") {
-            [0,50,100,200,500,1000,2000].forEach(g => {
-                let opt = document.createElement("option");
-                opt.value = g === 0 ? "0" : g+"g";
-                opt.text = g === 0 ? "0" : g+" g";
-                select.appendChild(opt);
-            });
-        } else {
-            for (let i=0;i<=30;i++){
-                let opt = document.createElement("option");
-                opt.value = i;
-                opt.text = i;
-                select.appendChild(opt);
+// -------- MENU --------
+async function loadMenu(){
+    let res=await fetch("/menu");
+    let data=await res.json();
+
+    let menuDiv=document.getElementById("menu");
+    menuDiv.innerHTML="";
+
+    data.forEach((d,i)=>{
+
+        let section=document.createElement("div");
+        section.innerHTML=`<h4>${i==0?"Today":"Tomorrow"} - ${d.date}</h4>`;
+
+        d.items.forEach(item=>{
+
+            let select=document.createElement("select");
+            select.id=item+i;
+
+            if(item==="Jalebi"){
+                [0,50,100,200,500,1000,2000].forEach(g=>{
+                    let opt=document.createElement("option");
+                    opt.value=g==0?"0":g+"g";
+                    opt.text=g==0?"0":g+" g";
+                    select.appendChild(opt);
+                });
+            }else{
+                for(let j=0;j<=30;j++){
+                    let opt=document.createElement("option");
+                    opt.value=j;
+                    opt.text=j;
+                    select.appendChild(opt);
+                }
             }
-        }
 
-        menuDiv.innerHTML += `<label>${item}</label>`;
-        menuDiv.appendChild(select);
+            section.innerHTML+=`<label>${item}</label>`;
+            section.appendChild(select);
+        });
+
+        menuDiv.appendChild(section);
     });
 }
 
-// ---------------- BOOK ----------------
-async function book() {
+// -------- BOOK --------
+async function book(){
 
-    let name = document.getElementById("name").value.trim();
-    let instruction = document.getElementById("instruction").value;
+    let name=document.getElementById("name").value;
+    let instruction=document.getElementById("instruction").value;
 
-    if (!name) return alert("Enter name");
+    let items={};
 
-    let items = {};
     document.querySelectorAll("#menu select").forEach(s=>{
-        if (s.value !== "0") items[s.id]=s.value;
+        if(s.value!="0") items[s.id]=s.value;
     });
 
-    if (Object.keys(items).length===0)
-        return alert("Select at least one item");
-
-    let res = await fetch("/order", {
+    let res=await fetch("/order",{
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({name,items,instruction})
     });
 
-    let data = await res.json();
+    let data=await res.json();
+
     if(data.error) alert(data.error);
-    else {
-        alert("Order placed!");
+    else{
+        alert("Order placed");
+        if(data.whatsapp) window.open(data.whatsapp);
         loadOrders();
     }
 }
 
-// ---------------- ORDERS ----------------
-function formatDate(dateStr){
-    try{
-        let d = new Date(dateStr);
-        let day = String(d.getDate()).padStart(2,'0');
-        let month = String(d.getMonth()+1).padStart(2,'0');
-        let year = d.getFullYear();
-
-        let time = d.toLocaleTimeString("en-IN",{hour:'2-digit',minute:'2-digit'});
-
-        return `${day}-${month}-${year} ${time}`;
-    }catch{
-        return dateStr;
-    }
-}
-
+// -------- ORDERS --------
 async function loadOrders(){
-    let res = await fetch("/orders");
-    let data = await res.json();
 
-    let div = document.getElementById("orders");
+    let res=await fetch("/orders");
+    let data=await res.json();
+
+    let div=document.getElementById("orders");
     div.innerHTML="";
 
-    let today = new Date().toDateString();
+    let today=new Date().toDateString();
 
     data.forEach(o=>{
-        let formatted = formatDate(o.date);
 
-        let d = new Date(o.date);
-        let isToday = d.toDateString()===today;
+        let d=new Date(o.date);
+        let isToday=d.toDateString()==today;
 
-        let el = document.createElement("div");
-        el.className = "order " + (isToday ? "today" : "");
+        let el=document.createElement("div");
+        el.className="order "+(isToday?"today":"");
 
-        el.innerHTML = `
-            <b>${o.name}</b><br>
-            ${o.items}<br>
-            <small>${formatted}</small><br>
-            <i>${o.instruction || ""}</i>
+        el.innerHTML=`
+        <b>${o.name}</b><br>
+        ${o.items}<br>
+        <small>${o.date}</small><br>
+        <i>${o.instruction||""}</i>
         `;
 
         div.appendChild(el);
     });
 }
 
-// ---------------- ADMIN ----------------
-function openAdmin(){
-    window.open("/admin-ui","_blank");
-}
-
-// ---------------- AUTO REFRESH ----------------
-setInterval(loadOrders, 10000); // every 10 sec
-
+// -------- INIT --------
 loadMenu();
 loadOrders();
+loadSettings();
+
+setInterval(loadOrders,10000);
 
 </script>
 
