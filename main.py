@@ -65,8 +65,8 @@ def parse_date(raw):
     raw = str(raw).strip()
 
     formats = [
+        "%d-%m-%Y %H:%M",        # ✅ YOUR SHEET FORMAT (FIXED)
         "%d-%m-%Y %I:%M %p",
-        "%d-%m-%Y %H:%M",
         "%d-%m-%Y",
         "%Y-%m-%d"
     ]
