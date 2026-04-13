@@ -5,48 +5,36 @@
 <title>Admin Panel</title>
 
 <style>
-body {
-    font-family: Arial;
-    padding: 15px;
-    background: #f4f6f8;
-}
+body { font-family: Arial; padding:15px; background:#f4f6f8; }
 
 .card {
-    background: white;
-    padding: 15px;
-    border-radius: 10px;
-    margin-bottom: 15px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    background:white;
+    padding:15px;
+    border-radius:10px;
+    margin-bottom:15px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.1);
 }
 
 input, select {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 10px;
+    width:100%;
+    padding:10px;
+    margin-bottom:10px;
 }
 
 button {
-    width: 100%;
-    padding: 12px;
-    background: #2980b9;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-size: 15px;
+    width:100%;
+    padding:12px;
+    background:#2980b9;
+    color:white;
+    border:none;
+    border-radius:6px;
 }
 
 .item {
-    padding: 8px 0;
-    border-bottom: 1px solid #eee;
-}
-
-.highlight {
-    background: #e8f8f5;
-    border-left: 4px solid #27ae60;
-    padding-left: 8px;
+    padding:8px 0;
+    border-bottom:1px solid #eee;
 }
 </style>
-
 </head>
 
 <body>
@@ -63,21 +51,16 @@ button {
 <div class="card">
 <h3>Booking Controls</h3>
 
-<label>Set Cutoff Time</label>
+<label>Cutoff Time</label>
 <input type="time" id="cutoff" value="19:00">
 
-<button onclick="saveSettings()">Save Settings</button>
-</div>
-
-<div class="card">
-<h3>Notifications</h3>
-
+<label>WhatsApp Alerts</label>
 <select id="whatsapp">
-    <option value="off">WhatsApp OFF</option>
-    <option value="on">WhatsApp ON</option>
+    <option value="off">OFF</option>
+    <option value="on">ON</option>
 </select>
 
-<button onclick="saveSettings()">Save Notification Settings</button>
+<button onclick="saveSettings()">Save Settings</button>
 </div>
 
 <div class="card">
@@ -99,29 +82,37 @@ async function loadAdmin() {
     }
 
     let div = document.getElementById("data");
-
-    div.innerHTML = "<h3>Today's Total</h3>";
+    div.innerHTML = "<h3>Today's Totals</h3>";
 
     for (let item in data) {
-        div.innerHTML += `
-            <div class="item highlight">
-                <b>${item}</b> : ${data[item]}
-            </div>
-        `;
+        div.innerHTML += `<div class="item"><b>${item}</b>: ${data[item]}</div>`;
+    }
+}
+
+// ---------------- SAVE SETTINGS ----------------
+async function saveSettings() {
+
+    let cutoff = document.getElementById("cutoff").value;
+    let whatsapp = document.getElementById("whatsapp").value;
+
+    let res = await fetch("/save-settings", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({cutoff, whatsapp})
+    });
+
+    let data = await res.json();
+
+    if (data.status === "saved") {
+        alert("Settings saved successfully");
+    } else {
+        alert("Failed");
     }
 }
 
 // ---------------- DOWNLOAD ----------------
 function download() {
-    window.open("/export", "_blank");
-}
-
-// ---------------- SETTINGS (future backend hook) ----------------
-function saveSettings() {
-    let cutoff = document.getElementById("cutoff").value;
-    let whatsapp = document.getElementById("whatsapp").value;
-
-    alert("Saved locally (backend integration next step)\nCutoff: "+cutoff+"\nWhatsApp: "+whatsapp);
+    window.open("/export","_blank");
 }
 
 </script>

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+﻿from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel
 from datetime import datetime, timedelta
@@ -7,7 +7,24 @@ import pandas as pd
 import requests
 
 app = FastAPI()
+from fastapi import Body
 
+@app.post("/save-settings")
+def save_settings(data: dict = Body(...)):
+
+    cutoff = data.get("cutoff", "19:00")
+    whatsapp = data.get("whatsapp", "off")
+
+    payload = {
+        "type": "settings",
+        "items": f"cutoff={cutoff};whatsapp={whatsapp}"
+    }
+
+    try:
+        requests.post(SHEET_URL, json=payload)
+        return {"status": "saved"}
+    except:
+        return {"error": "failed"}
 # ---------------- MENU ----------------
 menu = {
     "Monday": ["Samosa", "Gulab Jamun", "Jalebi"],
@@ -232,3 +249,7 @@ def export_excel():
     df.to_excel(file_path, index=False)
 
     return FileResponse(file_path, filename="orders.xlsx")
+@app.post("/save-settings")
+def save_settings(request: Request):
+
+    data = request.json()
