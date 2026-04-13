@@ -199,23 +199,41 @@ def admin(password:str):
     if password!="admin123":
         return {"error":"unauthorized"}
 
-    res = requests.get(SHEET_URL)
-    data = res.json()
+    try:
+        res = requests.get(SHEET_URL, timeout=5)
+        data = res.json()
+    except:
+        return {}
 
-    today = ist().strftime("%d-%m-%Y")
-    count={}
+    now = ist()
+    today_str = now.strftime("%d-%m-%Y")
+
+    count = {}
 
     for r in data:
-        if today not in str(r["date"]):
+
+        raw_date = str(r.get("date",""))
+
+        # ✅ STRONG MATCH
+        if today_str not in raw_date:
             continue
 
-        items=json.loads(r["items"])
+        try:
+            items = json.loads(r["items"])
+        except:
+            continue
 
         for k,v in items.items():
-            if k=="Jalebi":
-                count[k]=count.get(k,0)+int(v.replace("g",""))
+
+            if str(v) == "0":
+                continue
+
+            if k == "Jalebi":
+                val = int(v.replace("g",""))
             else:
-                count[k]=count.get(k,0)+int(v)
+                val = int(v)
+
+            count[k] = count.get(k,0) + val
 
     return count
 

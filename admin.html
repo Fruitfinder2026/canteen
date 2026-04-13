@@ -39,7 +39,7 @@ button {
 
 <body>
 
-<div class="card">
+<div class="card" id="controls" style="display:none;">
 <h2>Admin Dashboard</h2>
 
 <input type="password" id="pass" placeholder="Enter password">
@@ -69,6 +69,8 @@ button {
 
 <script>
 
+let authenticated = false;
+
 async function loadAdmin() {
 
     let pass = document.getElementById("pass").value;
@@ -81,6 +83,10 @@ async function loadAdmin() {
         return;
     }
 
+    authenticated = true;
+
+    document.getElementById("controls").style.display = "block";
+
     let div = document.getElementById("data");
     div.innerHTML = "<h3>Today's Totals</h3>";
 
@@ -91,6 +97,11 @@ async function loadAdmin() {
 
 // ---------------- SAVE SETTINGS ----------------
 async function saveSettings() {
+
+    if(!authenticated){
+        alert("Login first");
+        return;
+    }
 
     let cutoff = document.getElementById("cutoff").value;
     let whatsapp = document.getElementById("whatsapp").value;
@@ -110,7 +121,6 @@ async function saveSettings() {
     }
 }
 
-// ---------------- DOWNLOAD ----------------
 function download() {
     window.open("/export","_blank");
 }

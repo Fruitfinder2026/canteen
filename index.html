@@ -168,7 +168,7 @@ async function loadOrders(){
 
     data.forEach(o=>{
 
-        let d=new Date(o.date);
+        let d = parseDate(o.date);
         let isToday=d.toDateString()==today;
 
         let el=document.createElement("div");
@@ -184,7 +184,13 @@ async function loadOrders(){
         div.appendChild(el);
     });
 }
+function parseDate(str){
+    let parts = str.split(" ");
+    let dmy = parts[0].split("-");
+    let time = parts[1] || "00:00";
 
+    return new Date(`${dmy[2]}-${dmy[1]}-${dmy[0]} ${time}`);
+}
 // -------- INIT --------
 loadMenu();
 loadOrders();
