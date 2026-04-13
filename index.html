@@ -129,7 +129,9 @@ async function book(){
     let items={};
 
     document.querySelectorAll("#menu select").forEach(s=>{
-        if(s.value!="0") items[s.id]=s.value;
+        if(s.value!="0") 
+let name = s.id.replace(/[0-9]/g, "");  // remove index
+items[name] = s.value;
     });
 
     let res=await fetch("/order",{

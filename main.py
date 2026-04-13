@@ -178,7 +178,7 @@ def orders():
             continue
 
         items_text = ", ".join([
-            f"{k}({v})" for k,v in items.items() if str(v)!="0"
+            if(String(v) !== "0") return `${k}(${v})` for k,v in items.items() if str(v)!="0"
         ])
 
         result.append({
@@ -208,29 +208,30 @@ def admin_data(password: str):
 
     for r in data:
 
-        dt = parse_date(r.get("date"))
-        if not dt:
+    dt = parse_date(r.get("date"))
+
+    if not dt:
+        dt = now
+
+    if dt.date() != now.date():
+        continue
+
+    try:
+        items = json.loads(r["items"])
+    except:
+        continue
+
+    for k, v in items.items():
+
+        if str(v) == "0":
             continue
 
-        if dt.date() != now.date():
-            continue
+        if k == "Jalebi":
+            val = int(str(v).replace("g","").strip())
+        else:
+            val = int(v)
 
-        try:
-            items = json.loads(r["items"])
-        except:
-            continue
-
-        for k, v in items.items():
-
-            if str(v) == "0":
-                continue
-
-            if k == "Jalebi":
-                val = int(str(v).replace("g",""))
-            else:
-                val = int(v)
-
-            count[k] = count.get(k, 0) + val
+        count[k] = count.get(k, 0) + val
 
     return count
 
