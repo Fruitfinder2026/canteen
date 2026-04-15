@@ -8,11 +8,11 @@
 
 body {
     margin:0;
-    font-family: 'Segoe UI', sans-serif;
+    font-family:'Segoe UI', sans-serif;
     background:#f5f7fb;
 }
 
-/* ?? HEADER */
+/* HEADER */
 .header {
     background: linear-gradient(135deg,#ff6a00,#ff3c00);
     color:white;
@@ -25,12 +25,12 @@ body {
     z-index:100;
 }
 
-/* ?? CONTAINER */
+/* CONTAINER */
 .container {
     padding:15px;
 }
 
-/* ?? CARD */
+/* CARD */
 .card {
     background:white;
     padding:16px;
@@ -39,14 +39,12 @@ body {
     box-shadow:0 4px 14px rgba(0,0,0,0.08);
 }
 
-/* ?? SECTION TITLE */
-h4 {
-    margin-top:15px;
-    margin-bottom:8px;
-    color:#444;
+/* SECTION */
+.section {
+    margin-top:10px;
 }
 
-/* ?? INPUTS */
+/* INPUT */
 input, textarea, select {
     width:100%;
     padding:12px;
@@ -56,11 +54,13 @@ input, textarea, select {
     font-size:15px;
 }
 
-/* ?? BUTTON */
+/* BUTTON */
 .book-btn {
     position:sticky;
     bottom:10px;
-    width:100%;
+    width:95%;
+    margin:auto;
+    display:block;
     padding:15px;
     border:none;
     border-radius:14px;
@@ -76,7 +76,7 @@ input, textarea, select {
     transform:scale(0.97);
 }
 
-/* ?? ORDER LIST */
+/* ORDER */
 .order {
     padding:12px 0;
     border-bottom:1px solid #eee;
@@ -88,16 +88,8 @@ input, textarea, select {
     padding-left:10px;
 }
 
-/* ?? LOADER */
-.loader {
-    text-align:center;
-    padding:12px;
-    color:#999;
-}
-
-/* ?? BADGE */
+/* BADGE */
 .badge {
-    display:inline-block;
     background:#00b894;
     color:white;
     padding:2px 8px;
@@ -106,14 +98,28 @@ input, textarea, select {
     margin-left:5px;
 }
 
-/* ?? ANIMATION */
-.fade {
-    animation:fadeIn 0.4s ease-in;
+/* LOADER */
+.loader {
+    text-align:center;
+    padding:12px;
+    color:#999;
 }
 
-@keyframes fadeIn {
-    from {opacity:0;}
-    to {opacity:1;}
+/* CART PREVIEW */
+.cart {
+    background:#f1fdf9;
+    padding:10px;
+    border-radius:10px;
+    margin-top:10px;
+    font-size:14px;
+}
+
+/* FOOTER */
+.footer {
+    text-align:center;
+    font-size:12px;
+    color:#777;
+    padding:20px 10px;
 }
 
 </style>
@@ -121,24 +127,33 @@ input, textarea, select {
 
 <body>
 
-<div class="header">APS2 Canteen</div>
+<div class="header">APS2 Canteen Booking System</div>
 
 <div class="container">
 
-<div class="card fade">
+<div class="card">
     <h3 id="date"></h3>
+
     <div id="menu"><div class="loader">Loading menu...</div></div>
 
-    <input id="name" placeholder="Enter your name">
-    <textarea id="instruction" placeholder="Any Special Instructions"></textarea>
+    <div class="section">
+        <input id="name" placeholder="Enter your name">
+        <textarea id="instruction" placeholder="Any Special Instructions"></textarea>
+    </div>
+
+    <div id="cartPreview" class="cart">No items selected</div>
 </div>
 
-<div class="card fade">
+<div class="card">
     <h3>Orders (Last 7 Days)</h3>
     <div id="orders"><div class="loader">Loading orders...</div></div>
 </div>
 
-<button class="book-btn" id="bookBtn" onclick="book()">Place Order</button>
+<button class="book-btn" id="bookBtn" onclick="book()">?? Place Order</button>
+
+<div class="footer">
+    © All rights reserved by IT Cell APS-II. Any unauthorized use or infringement may attract appropriate action.
+</div>
 
 </div>
 
@@ -151,19 +166,6 @@ async function loadSettings(){
 
     document.getElementById("date").innerHTML =
         `<span style="color:#ff3c00">Cutoff: ${s.cutoff}</span>`;
-
-    let now=new Date();
-    let [h,m]=s.cutoff.split(":");
-
-    let cutoff=new Date();
-    cutoff.setHours(h,m);
-
-    if(now>=cutoff){
-        let btn=document.getElementById("bookBtn");
-        btn.disabled=true;
-        btn.innerText="Booking Closed";
-        btn.style.background="gray";
-    }
 }
 
 // MENU
@@ -182,6 +184,8 @@ async function loadMenu(){
         d.items.forEach(item=>{
             let select=document.createElement("select");
             select.id=item+i;
+
+            select.onchange = updateCart;
 
             if(item==="Jalebi"){
                 [0,50,100,200,500,1000,2000].forEach(g=>{
@@ -207,6 +211,21 @@ async function loadMenu(){
     });
 }
 
+// CART PREVIEW
+function updateCart(){
+    let items=[];
+
+    document.querySelectorAll("#menu select").forEach(s=>{
+        if(s.value!="0"){
+            let name=s.id.replace(/[0-9]/g,"");
+            items.push(`${name}(${s.value})`);
+        }
+    });
+
+    document.getElementById("cartPreview").innerText =
+        items.length ? items.join(", ") : "No items selected";
+}
+
 // BOOK
 async function book(){
 
@@ -225,6 +244,13 @@ async function book(){
             items[name]=s.value;
         }
     });
+
+    if(Object.keys(items).length===0){
+        alert("Select at least one item");
+        btn.disabled=false;
+        btn.innerText="?? Place Order";
+        return;
+    }
 
     let res=await fetch("/order",{
         method:"POST",
@@ -252,9 +278,6 @@ function parseDate(str){
         let [dd,mm,yyyy]=datePart.split("-");
         let [hh,min]=timePart.split(":");
 
-        hh=parseInt(hh);
-        min=parseInt(min);
-
         if(ampm==="PM" && hh<12) hh+=12;
         if(ampm==="AM" && hh===12) hh=0;
 
@@ -264,9 +287,8 @@ function parseDate(str){
     }
 }
 
-// LOAD ORDERS
+// ORDERS
 async function loadOrders(){
-
     let res=await fetch("/orders");
     let data=await res.json();
 
