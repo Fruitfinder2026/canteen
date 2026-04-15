@@ -9,6 +9,11 @@ from fastapi import Body
 
 app = FastAPI()
 
+CACHE = {
+    "orders": [],
+    "last_fetch": None
+}
+
 SHEET_URL = "https://script.google.com/macros/s/AKfycbyoPGSPn13L8gmTzcjpOEjxTBKnWYh74dIJlcpmxDjuHUzM5FIC5g6hAn2aggOQwcCd/exec"
 
 # ---------------- SETTINGS ----------------
@@ -159,21 +164,28 @@ def order(o: Order, request: Request):
 
 
 # ---------------- ORDERS ----------------
+from datetime import timedelta
+
 @app.get("/orders")
 def orders():
+
+    now = ist()
+
+    # ⏱ 10-second cache
+    if CACHE["last_fetch"] and (now - CACHE["last_fetch"]).seconds < 10:
+        return CACHE["orders"]
+
     try:
         res = requests.get(SHEET_URL, timeout=5)
         data = res.json()
     except:
         return []
 
-    now = ist()
     result = []
 
     for r in data:
 
         dt = parse_date(r.get("date"))
-
         if not dt:
             dt = now
 
@@ -196,8 +208,12 @@ def orders():
             "instruction": r.get("instruction", "")
         })
 
-    return list(reversed(result))
+    result = list(reversed(result))
 
+    CACHE["orders"] = result
+    CACHE["last_fetch"] = now
+
+    return result
 
 # ---------------- ADMIN ----------------
 @app.get("/admin-data")
