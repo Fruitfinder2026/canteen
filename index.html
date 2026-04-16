@@ -1,55 +1,48 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Canteen Booking</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APS2 Canteen Booking</title>
 
-    <style>
-        body {
-            font-family: Arial;
-            padding: 15px;
-            background: #f5f5f5;
-        }
+<style>
+body {
+    font-family: Arial;
+    padding: 15px;
+    background: #f5f5f5;
+}
 
-        h2 {
-            text-align: center;
-        }
+.card {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+}
 
-        .card {
-            background: white;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
+select {
+    margin-left: 10px;
+}
 
-        input {
-            width: 100%;
-            padding: 10px;
-            margin-top: 10px;
-        }
+button {
+    width: 100%;
+    padding: 12px;
+    background: #28a745;
+    color: white;
+    border: none;
+    margin-top: 10px;
+    font-size: 16px;
+    border-radius: 8px;
+}
 
-        button {
-            width: 100%;
-            padding: 12px;
-            background: #28a745;
-            color: white;
-            border: none;
-            margin-top: 10px;
-            font-size: 16px;
-            border-radius: 8px;
-        }
-
-        .order {
-            border-bottom: 1px solid #ddd;
-            padding: 5px 0;
-        }
-    </style>
+.order {
+    border-bottom: 1px solid #ddd;
+    padding: 8px 0;
+}
+</style>
 </head>
 
 <body>
 
-<h2>Canteen Booking</h2>
+<h2>APS2 Canteen Booking System</h2>
 
 <div class="card">
     <h3 id="date"></h3>
@@ -67,6 +60,7 @@
 </div>
 
 <script>
+
 async function loadMenu() {
     let res = await fetch("/menu");
     let data = await res.json();
@@ -78,20 +72,36 @@ async function loadMenu() {
     menuDiv.innerHTML = "";
 
     data.items.forEach(item => {
-        let label = document.createElement("label");
-        label.innerHTML = `<input type="checkbox" value="${item}"> ${item}`;
-        menuDiv.appendChild(label);
-        menuDiv.appendChild(document.createElement("br"));
+        let row = document.createElement("div");
+
+        row.innerHTML = `
+            ${item}
+            <select id="${item}">
+                <option value="0">0</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="5">5</option>
+                <option value="10">10</option>
+            </select>
+        `;
+
+        menuDiv.appendChild(row);
     });
 }
 
 async function book() {
     let name = document.getElementById("name").value;
 
-    let checked = document.querySelectorAll("input[type=checkbox]:checked");
-    let items = Array.from(checked).map(c => c.value);
+    let items = {};
 
-    if (!name || items.length === 0) {
+    document.querySelectorAll("select").forEach(s => {
+        if (s.value != "0") {
+            items[s.id] = s.value;
+        }
+    });
+
+    if (!name || Object.keys(items).length === 0) {
         alert("Enter name and select items");
         return;
     }
@@ -114,15 +124,28 @@ async function loadOrders() {
     div.innerHTML = "";
 
     data.forEach(o => {
+
+        // CLEAN ITEMS DISPLAY
+        let items = Object.entries(o.items || {})
+            .map(([k,v]) => `${v} × ${k}`)
+            .join(", ");
+
         let d = document.createElement("div");
         d.className = "order";
-        d.innerHTML = `<b>${o.name}</b> ? ${o.items.join(", ")} <br><small>${o.date}</small>`;
+
+        d.innerHTML = `
+            <b>${o.name}</b><br>
+            ${items}<br>
+            <small>${o.date}</small>
+        `;
+
         div.appendChild(d);
     });
 }
 
 loadMenu();
 loadOrders();
+
 </script>
 
 </body>
