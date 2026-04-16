@@ -5,71 +5,122 @@
 <title>APS2 Canteen</title>
 
 <style>
-body { font-family: Arial; margin:0; background:#f4f6f8; }
 
-.header {
-    background: linear-gradient(135deg,#ff6a00,#ff3c00);
-    color:white;
-    padding:15px;
-    text-align:center;
-    font-weight:bold;
+body {
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    margin:0;
+    background:#f5f7fa;
 }
 
-.container { padding:15px; }
+/* HEADER */
+.header {
+    background: linear-gradient(135deg,#ff512f,#dd2476);
+    color:white;
+    padding:18px;
+    text-align:center;
+    font-size:20px;
+    font-weight:600;
+    letter-spacing:0.5px;
+}
 
+/* CONTAINER */
+.container {
+    padding:15px;
+    max-width:700px;
+    margin:auto;
+}
+
+/* CARD */
 .card {
     background:white;
-    padding:15px;
-    border-radius:12px;
+    padding:18px;
+    border-radius:14px;
     margin-bottom:15px;
-    box-shadow:0 2px 8px rgba(0,0,0,0.1);
+    box-shadow:0 4px 12px rgba(0,0,0,0.08);
 }
 
-.order { border-bottom:1px solid #ddd; padding:10px 0; }
-
-.today {
-    background:#e8f8f5;
-    border-left:4px solid #27ae60;
-    padding-left:8px;
-}
-
-button {
-    width:100%;
-    padding:12px;
-    border:none;
-    border-radius:10px;
+/* SECTION TITLE */
+.section-title {
     font-size:16px;
-    cursor:pointer;
+    font-weight:600;
+    margin-bottom:10px;
 }
 
-.book-btn {
-    background: linear-gradient(135deg,#00b09b,#00c9a7);
-    color:white;
-    font-weight:bold;
+/* ITEM */
+.menu-item {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:10px 0;
+    border-bottom:1px solid #eee;
 }
 
-input, textarea, select {
-    width:100%;
-    padding:10px;
-    margin-top:8px;
-    border-radius:6px;
+/* SELECT */
+select {
+    padding:6px;
+    border-radius:8px;
     border:1px solid #ccc;
 }
 
-.cart {
+/* INPUT */
+input, textarea {
+    width:100%;
+    padding:12px;
     margin-top:10px;
-    padding:10px;
-    background:#f1fdf9;
     border-radius:8px;
+    border:1px solid #ddd;
     font-size:14px;
 }
 
+/* BUTTON */
+.book-btn {
+    position:fixed;
+    bottom:20px;
+    left:50%;
+    transform:translateX(-50%);
+    width:90%;
+    max-width:500px;
+    padding:14px;
+    border:none;
+    border-radius:30px;
+    font-size:16px;
+    font-weight:600;
+    color:white;
+    background:linear-gradient(135deg,#00c6ff,#0072ff);
+    box-shadow:0 6px 16px rgba(0,0,0,0.2);
+}
+
+/* CART */
+.cart {
+    margin-top:10px;
+    padding:12px;
+    background:#f0fbff;
+    border-radius:10px;
+    font-size:14px;
+    color:#333;
+}
+
+/* ORDER */
+.order {
+    padding:12px;
+    border-radius:10px;
+    margin-bottom:10px;
+    background:#fafafa;
+}
+
+.today {
+    background:#e8f8f5;
+    border-left:5px solid #2ecc71;
+}
+
+/* FOOTER */
 .footer {
     text-align:center;
     font-size:12px;
     color:#777;
-    padding:20px 10px;
+    padding:30px 10px 60px;
 }
+
 </style>
 </head>
 
@@ -79,46 +130,40 @@ input, textarea, select {
 
 <div class="container">
 
+<!-- MENU -->
 <div class="card">
-    <h3 id="date"></h3>
+    <div id="cutoff" style="color:red; font-size:14px;"></div>
     <div id="menu"></div>
 
-    <input id="name" placeholder="Enter your name">
-    <textarea id="instruction" placeholder="Any Special Instructions"></textarea>
+    <input id="name" placeholder="Your Name">
+    <textarea id="instruction" placeholder="Special instructions (optional)"></textarea>
 
     <div id="cart" class="cart">No items selected</div>
-
-    <button class="book-btn" onclick="book()">Place Order</button>
 </div>
 
+<!-- ORDERS -->
 <div class="card">
-    <h3>Orders (Last 7 Days)</h3>
+    <div class="section-title">Recent Orders</div>
     <div id="orders"></div>
 </div>
 
 </div>
 
+<button class="book-btn" onclick="book()">Place Order</button>
+
 <div class="footer">
-© All rights reserved by IT Cell APS-II. Any unauthorized use may invite appropriate action.
+All rights reserved by IT Cell APS-II. Unauthorized use may invite action.
 </div>
 
 <script>
 
-// ?? BULLETPROOF FETCH
+// SAFE FETCH
 async function safeFetch(url){
     try{
         let res = await fetch(url);
         let text = await res.text();
-
-        try{
-            return JSON.parse(text);
-        }catch{
-            console.log("Invalid JSON:", url, text);
-            return null;
-        }
-
-    }catch(e){
-        console.log("Fetch error:", e);
+        return JSON.parse(text);
+    }catch{
         return null;
     }
 }
@@ -126,15 +171,10 @@ async function safeFetch(url){
 // SETTINGS
 async function loadSettings(){
     let s = await safeFetch("/settings");
+    if(!s) return;
 
-    if(!s){
-        document.getElementById("date").innerHTML =
-            `<div style="color:red">Cutoff: 19:00</div>`;
-        return;
-    }
-
-    document.getElementById("date").innerHTML =
-        `<div style="color:red">Cutoff: ${s.cutoff}</div>`;
+    document.getElementById("cutoff").innerText =
+        "Cutoff: " + s.cutoff;
 }
 
 // MENU
@@ -142,17 +182,20 @@ async function loadMenu(){
     let data = await safeFetch("/menu");
     if(!data) return;
 
-    let menuDiv=document.getElementById("menu");
-    menuDiv.innerHTML="";
+    let div = document.getElementById("menu");
+    div.innerHTML="";
 
     data.forEach((d,i)=>{
-        let section=document.createElement("div");
-        section.innerHTML=`<h4>${i==0?"Today":"Tomorrow"} - ${d.date}</h4>`;
+        let block=document.createElement("div");
+        block.innerHTML=`<h4>${i==0?"Today":"Tomorrow"} (${d.date})</h4>`;
 
         d.items.forEach(item=>{
+            let row=document.createElement("div");
+            row.className="menu-item";
+
             let select=document.createElement("select");
             select.id=item+i;
-            select.onchange = updateCart;
+            select.onchange=updateCart;
 
             if(item==="Jalebi"){
                 [0,50,100,200,500].forEach(g=>{
@@ -170,11 +213,12 @@ async function loadMenu(){
                 }
             }
 
-            section.innerHTML+=`<label>${item}</label>`;
-            section.appendChild(select);
+            row.innerHTML=`<span>${item}</span>`;
+            row.appendChild(select);
+            block.appendChild(row);
         });
 
-        menuDiv.appendChild(section);
+        div.appendChild(block);
     });
 }
 
@@ -182,10 +226,10 @@ async function loadMenu(){
 function updateCart(){
     let items=[];
 
-    document.querySelectorAll("#menu select").forEach(s=>{
-        if(s.value !== "0"){
-            let name = s.id.replace(/[0-9]/g, "");
-            items.push(name + "(" + s.value + ")");
+    document.querySelectorAll("select").forEach(s=>{
+        if(s.value!=="0"){
+            let name=s.id.replace(/[0-9]/g,"");
+            items.push(name+"("+s.value+")");
         }
     });
 
@@ -200,10 +244,10 @@ async function book(){
 
     let items={};
 
-    document.querySelectorAll("#menu select").forEach(s=>{
-        if(s.value !== "0"){
-            let itemName = s.id.replace(/[0-9]/g, "");
-            items[itemName] = s.value;
+    document.querySelectorAll("select").forEach(s=>{
+        if(s.value!=="0"){
+            let name=s.id.replace(/[0-9]/g,"");
+            items[name]=s.value;
         }
     });
 
@@ -217,60 +261,32 @@ async function book(){
     loadOrders();
 }
 
-// FORMAT ITEMS
-function formatItems(itemsStr){
-    try{
-        let obj = typeof itemsStr === "string" ? JSON.parse(itemsStr) : itemsStr;
-        let result=[];
-
-        for(let k in obj){
-            if(obj[k] !== "0"){
-                result.push(`${k}(${obj[k]})`);
-            }
-        }
-
-        return result.join(", ");
-    }catch{
-        return itemsStr;
-    }
-}
-
-// ?? FIXED DATE PARSER (IMPORTANT)
+// DATE FIX
 function parseDate(str){
     try{
-        let [datePart, timePart, ampm] = str.split(" ");
-        let [dd,mm,yyyy] = datePart.split("-");
+        let [d,t,ampm]=str.split(" ");
+        let [dd,mm,yyyy]=d.split("-");
+        let [hh,min]=t.split(":");
 
-        let [hh,min] = timePart.split(":");
+        hh=parseInt(hh);
+        if(ampm==="PM" && hh<12) hh+=12;
+        if(ampm==="AM" && hh===12) hh=0;
 
-        hh = parseInt(hh);
-        min = parseInt(min);
-
-        if(ampm === "PM" && hh < 12) hh += 12;
-        if(ampm === "AM" && hh === 12) hh = 0;
-
-        return new Date(yyyy, mm-1, dd, hh, min);
+        return new Date(yyyy,mm-1,dd,hh,min);
     }catch{
         return new Date();
     }
 }
 
-// FORMAT TIME
-function formatTime(dateStr){
-    let d = parseDate(dateStr);
-
-    return d.toLocaleString("en-IN",{
-        day:"2-digit",
-        month:"2-digit",
-        year:"numeric",
-        hour:"2-digit",
-        minute:"2-digit"
-    });
+// FORMAT
+function formatTime(s){
+    let d=parseDate(s);
+    return d.toLocaleString("en-IN",{hour:"2-digit",minute:"2-digit",day:"2-digit",month:"short"});
 }
 
-// LOAD ORDERS
+// ORDERS
 async function loadOrders(){
-    let data = await safeFetch("/orders");
+    let data=await safeFetch("/orders");
     if(!data) return;
 
     let div=document.getElementById("orders");
@@ -280,10 +296,9 @@ async function loadOrders(){
 
     data.forEach(o=>{
         let d=parseDate(o.date);
-        let isToday=d.toDateString()==today;
 
         let el=document.createElement("div");
-        el.className="order "+(isToday?"today":"");
+        el.className="order "+(d.toDateString()==today?"today":"");
 
         el.innerHTML=`
         <b>${o.name}</b><br>
