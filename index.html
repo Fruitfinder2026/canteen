@@ -75,7 +75,7 @@ input, textarea, select {
 
 <body>
 
-<div class="header">APS2 Canteen's Booking System</div>
+<div class="header">APS2 Canteen Booking System</div>
 
 <div class="container">
 
@@ -104,32 +104,30 @@ input, textarea, select {
 
 <script>
 
+// SAFE FETCH
+async function safeFetch(url){
+    try{
+        let res = await fetch(url);
+        return await res.json();
+    }catch(e){
+        console.log("Fetch error:", e);
+        return null;
+    }
+}
+
 // SETTINGS
 async function loadSettings(){
-    let res = await fetch("/settings");
-    let s = await res.json();
+    let s = await safeFetch("/settings");
+    if(!s) return;
 
     document.getElementById("date").innerHTML =
         `<div style="color:red">Cutoff: ${s.cutoff}</div>`;
-
-    let now = new Date();
-    let [h,m]=s.cutoff.split(":");
-
-    let cutoff=new Date();
-    cutoff.setHours(parseInt(h), parseInt(m));
-
-    if(now>=cutoff){
-        let btn=document.querySelector(".book-btn");
-        btn.disabled=true;
-        btn.innerText="Booking Closed";
-        btn.style.background="gray";
-    }
 }
 
 // MENU
 async function loadMenu(){
-    let res=await fetch("/menu");
-    let data=await res.json();
+    let data = await safeFetch("/menu");
+    if(!data) return;
 
     let menuDiv=document.getElementById("menu");
     menuDiv.innerHTML="";
@@ -144,14 +142,14 @@ async function loadMenu(){
             select.onchange = updateCart;
 
             if(item==="Jalebi"){
-                [0,50,100,200,500,1000,2000].forEach(g=>{
+                [0,50,100,200,500].forEach(g=>{
                     let opt=document.createElement("option");
                     opt.value=g==0?"0":g+"g";
                     opt.text=g==0?"0":g+" g";
                     select.appendChild(opt);
                 });
             }else{
-                for(let j=0;j<=30;j++){
+                for(let j=0;j<=20;j++){
                     let opt=document.createElement("option");
                     opt.value=j;
                     opt.text=j;
@@ -202,31 +200,31 @@ async function book(){
         body:JSON.stringify({name,items,instruction})
     });
 
-    let data=await res.json();
-
-    if(data.error) alert(data.error);
-    else{
-        alert("Order placed");
-        loadOrders();
-    }
+    alert("Order placed");
+    loadOrders();
 }
 
-// ? SAFE DATE PARSER
-function parseDate(str){
+// FORMAT ITEMS (FIX YOUR BUG HERE ??)
+function formatItems(itemsStr){
     try{
-        let [datePart,timePart]=str.split(" ");
-        let [dd,mm,yyyy]=datePart.split("-");
-        let [hh,min]=timePart.split(":");
+        let obj = typeof itemsStr === "string" ? JSON.parse(itemsStr) : itemsStr;
+        let result=[];
 
-        return new Date(yyyy, mm-1, dd, hh, min);
+        for(let k in obj){
+            if(obj[k] !== "0"){
+                result.push(`${k}(${obj[k]})`);
+            }
+        }
+
+        return result.join(", ");
     }catch{
-        return new Date();
+        return itemsStr;
     }
 }
 
-// ? SAFE FORMAT
-function formatTime(str){
-    let d=parseDate(str);
+// FORMAT TIME
+function formatTime(dateStr){
+    let d = new Date(dateStr);
     return d.toLocaleString("en-IN",{
         day:"2-digit",
         month:"2-digit",
@@ -236,10 +234,10 @@ function formatTime(str){
     });
 }
 
-// ORDERS
+// LOAD ORDERS
 async function loadOrders(){
-    let res=await fetch("/orders");
-    let data=await res.json();
+    let data = await safeFetch("/orders");
+    if(!data) return;
 
     let div=document.getElementById("orders");
     div.innerHTML="";
@@ -247,17 +245,18 @@ async function loadOrders(){
     let today=new Date().toDateString();
 
     data.forEach(o=>{
-        let d=parseDate(o.date);
+        let d=new Date(o.date);
         let isToday=d.toDateString()==today;
 
         let el=document.createElement("div");
         el.className="order "+(isToday?"today":"");
 
-        el.innerHTML=
-        "<b>"+o.name+"</b><br>"+
-        o.items+"<br>"+
-        "<small>"+formatTime(o.date)+"</small><br>"+
-        "<i>"+(o.instruction||"")+"</i>";
+        el.innerHTML=`
+        <b>${o.name}</b><br>
+        ${formatItems(o.items)}<br>
+        <small>${formatTime(o.date)}</small><br>
+        <i>${o.instruction||""}</i>
+        `;
 
         div.appendChild(el);
     });
