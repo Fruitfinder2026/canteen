@@ -7,6 +7,7 @@ import pandas as pd
 import requests
 from fastapi import Body
 
+
 app = FastAPI()
 
 CACHE = {
@@ -86,15 +87,27 @@ def parse_date(raw):
 
 
 # ---------------- ROUTES ----------------
+from fastapi.responses import FileResponse
+import os
+
 @app.get("/")
 def home():
-    return HTMLResponse(open("index.html").read())
+    file_path = os.path.join(os.getcwd(), "index.html")
+
+    if not os.path.exists(file_path):
+        return {"error": "index.html not found on server"}
+
+    return FileResponse(file_path)
 
 
 @app.get("/admin")
 def admin_page():
-    return HTMLResponse(open("admin.html").read())
+    file_path = os.path.join(os.getcwd(), "admin.html")
 
+    if not os.path.exists(file_path):
+        return {"error": "admin.html not found"}
+
+    return FileResponse(file_path)
 
 # ---------------- MENU ----------------
 menu = {
