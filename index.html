@@ -10,12 +10,9 @@ body { font-family: Arial; margin:0; background:#f4f6f8; }
 .header {
     background: linear-gradient(135deg,#ff6a00,#ff3c00);
     color:white;
-    padding:16px;
+    padding:15px;
     text-align:center;
-    font-size:18px;
     font-weight:bold;
-    position:sticky;
-    top:0;
 }
 
 .container { padding:15px; }
@@ -25,13 +22,10 @@ body { font-family: Arial; margin:0; background:#f4f6f8; }
     padding:15px;
     border-radius:12px;
     margin-bottom:15px;
-    box-shadow:0 3px 10px rgba(0,0,0,0.08);
+    box-shadow:0 2px 8px rgba(0,0,0,0.1);
 }
 
-.order {
-    border-bottom:1px solid #eee;
-    padding:10px 0;
-}
+.order { border-bottom:1px solid #ddd; padding:10px 0; }
 
 .today {
     background:#e8f8f5;
@@ -41,7 +35,7 @@ body { font-family: Arial; margin:0; background:#f4f6f8; }
 
 button {
     width:100%;
-    padding:14px;
+    padding:12px;
     border:none;
     border-radius:10px;
     font-size:16px;
@@ -58,7 +52,7 @@ input, textarea, select {
     width:100%;
     padding:10px;
     margin-top:8px;
-    border-radius:8px;
+    border-radius:6px;
     border:1px solid #ccc;
 }
 
@@ -81,7 +75,7 @@ input, textarea, select {
 
 <body>
 
-<div class="header">?? APS2 Canteen</div>
+<div class="header">APS2 Canteen's Booking System</div>
 
 <div class="container">
 
@@ -94,7 +88,7 @@ input, textarea, select {
 
     <div id="cart" class="cart">No items selected</div>
 
-    <button class="book-btn" onclick="book()">?? Place Order</button>
+    <button class="book-btn" onclick="book()">Place Order</button>
 </div>
 
 <div class="card">
@@ -116,7 +110,20 @@ async function loadSettings(){
     let s = await res.json();
 
     document.getElementById("date").innerHTML =
-        `<div style="color:#e74c3c">Cutoff: ${s.cutoff}</div>`;
+        `<div style="color:red">Cutoff: ${s.cutoff}</div>`;
+
+    let now = new Date();
+    let [h,m]=s.cutoff.split(":");
+
+    let cutoff=new Date();
+    cutoff.setHours(parseInt(h), parseInt(m));
+
+    if(now>=cutoff){
+        let btn=document.querySelector(".book-btn");
+        btn.disabled=true;
+        btn.innerText="Booking Closed";
+        btn.style.background="gray";
+    }
 }
 
 // MENU
@@ -165,9 +172,9 @@ function updateCart(){
     let items=[];
 
     document.querySelectorAll("#menu select").forEach(s=>{
-        if(s.value!="0"){
-            let name=s.id.replace(/[0-9]/g,"");
-            items.push(`${name}(${s.value})`);
+        if(s.value !== "0"){
+            let name = s.id.replace(/[0-9]/g, "");
+            items.push(name + "(" + s.value + ")");
         }
     });
 
@@ -183,9 +190,9 @@ async function book(){
     let items={};
 
     document.querySelectorAll("#menu select").forEach(s=>{
-        if(s.value!="0"){
-            let n=s.id.replace(/[0-9]/g,"");
-            items[n]=s.value;
+        if(s.value !== "0"){
+            let itemName = s.id.replace(/[0-9]/g, "");
+            items[itemName] = s.value;
         }
     });
 
@@ -199,25 +206,25 @@ async function book(){
 
     if(data.error) alert(data.error);
     else{
-        alert("Order placed successfully ?");
+        alert("Order placed");
         loadOrders();
     }
 }
 
-// ? FIXED DATE PARSER
+// ? SAFE DATE PARSER
 function parseDate(str){
     try{
         let [datePart,timePart]=str.split(" ");
         let [dd,mm,yyyy]=datePart.split("-");
         let [hh,min]=timePart.split(":");
 
-        return new Date(yyyy,mm-1,dd,hh,min);
+        return new Date(yyyy, mm-1, dd, hh, min);
     }catch{
         return new Date();
     }
 }
 
-// ? FIXED FORMAT
+// ? SAFE FORMAT
 function formatTime(str){
     let d=parseDate(str);
     return d.toLocaleString("en-IN",{
@@ -246,12 +253,11 @@ async function loadOrders(){
         let el=document.createElement("div");
         el.className="order "+(isToday?"today":"");
 
-        el.innerHTML=`
-        <b>${o.name}</b><br>
-        ${o.items}<br>
-        <small>${formatTime(o.date)}</small><br>
-        <i>${o.instruction||""}</i>
-        `;
+        el.innerHTML=
+        "<b>"+o.name+"</b><br>"+
+        o.items+"<br>"+
+        "<small>"+formatTime(o.date)+"</small><br>"+
+        "<i>"+(o.instruction||"")+"</i>";
 
         div.appendChild(el);
     });
